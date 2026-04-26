@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="manifest" href="manifest.json">
+<title>Golf Club Register</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f5f5f7;--card:#fff;--primary:#2d6a4f;--primary-light:#40916c;
+  --accent:#d4a373;--text:#1a1a2e;--text-light:#6c757d;--border:#dee2e6;
+  --danger:#dc3545;--success:#198754;--radius:14px;--shadow:0 2px 12px rgba(0,0,0,.08);
+}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent}
+
+/* Top bar */
+.topbar{position:fixed;top:0;left:0;right:0;background:var(--card);z-index:100;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);padding-top:calc(10px + env(safe-area-inset-top))}
+.topbar-title{font-size:16px;font-weight:700;color:var(--primary)}
+.topbar-btn{background:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--text-light);cursor:pointer;display:flex;align-items:center;gap:4px}
+.topbar-btn svg{width:14px;height:14px}
+.topbar-btn.has-key{border-color:var(--success);color:var(--success)}
+
+/* Navigation */
+.nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);display:flex;border-top:1px solid var(--border);z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.nav-btn{flex:1;padding:10px 0 8px;text-align:center;font-size:11px;color:var(--text-light);background:none;border:none;cursor:pointer;transition:.2s}
+.nav-btn.active{color:var(--primary);font-weight:600}
+.nav-btn svg{display:block;margin:0 auto 3px;width:24px;height:24px}
+.nav-btn.active svg{stroke:var(--primary)}
+
+/* Screens */
+.screen{display:none;padding:60px 16px 90px;min-height:100vh;animation:fadeIn .25s}
+.screen.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Header */
+.header{text-align:center;padding:8px 0 14px}
+.header h1{font-size:20px;font-weight:700;color:var(--primary)}
+.header p{font-size:13px;color:var(--text-light);margin-top:2px}
+
+/* Cards */
+.card{background:var(--card);border-radius:var(--radius);padding:20px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card-title{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-title .badge{font-size:11px;background:var(--primary);color:#fff;padding:2px 8px;border-radius:20px;font-weight:500}
+
+/* Capture Buttons */
+.capture-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.capture-box{border:2px dashed var(--border);border-radius:10px;padding:12px 6px;text-align:center;cursor:pointer;transition:.2s;position:relative;min-height:105px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.capture-box:active{transform:scale(.97)}
+.capture-box.captured{border-color:var(--success);background:#f0faf4}
+.capture-box svg{width:26px;height:26px;stroke:var(--text-light);margin-bottom:5px}
+.capture-box.captured svg{stroke:var(--success)}
+.capture-box .label{font-size:12px;font-weight:600;color:var(--text)}
+.capture-box .sub{font-size:10px;color:var(--text-light);margin-top:3px;line-height:1.3}
+.capture-box .check{position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;background:var(--success);display:none;align-items:center;justify-content:center}
+.capture-box.captured .check{display:flex}
+.capture-box .thumb{width:100%;height:52px;object-fit:cover;border-radius:6px;margin-bottom:4px}
+
+/* Buttons */
+.btn{display:block;width:100%;padding:16px;border:none;border-radius:var(--radius);font-size:16px;font-weight:700;cursor:pointer;transition:.2s;text-align:center}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:disabled{background:#adb5bd;cursor:not-allowed;transform:none}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-outline{background:transparent;border:2px solid var(--primary);color:var(--primary)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-sm{padding:10px 16px;font-size:13px;width:auto;display:inline-block}
+.btn-row{display:flex;gap:10px;margin-top:14px}
+.btn-row .btn{flex:1}
+
+/* Form */
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.form-input{width:100%;padding:14px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;background:var(--card);color:var(--text);-webkit-appearance:none}
+.form-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(45,106,79,.12)}
+select.form-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+textarea.form-input{resize:vertical;min-height:70px;font-family:inherit}
+
+/* Toggle Group */
+.toggle-group{display:flex;border-radius:10px;overflow:hidden;border:1.5px solid var(--border)}
+.toggle-option{flex:1;padding:12px 8px;text-align:center;font-size:14px;font-weight:600;cursor:pointer;background:var(--card);color:var(--text-light);transition:.2s;border:none}
+.toggle-option.active{background:var(--primary);color:#fff}
+.toggle-option:not(:last-child){border-right:1px solid var(--border)}
+
+/* Table */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -16px;padding:0 16px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:500px}
+th{background:var(--primary);color:#fff;padding:10px 8px;text-align:left;font-weight:600;position:sticky;top:0}
+td{padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:nth-child(even){background:#f8f9fa}
+.actions{display:flex;gap:6px}
+.icon-btn{width:32px;height:32px;border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
+.icon-btn:active{transform:scale(.9)}
+.icon-btn.edit{background:#e3f2fd;color:#1976d2}
+.icon-btn.del{background:#fde8e8;color:var(--danger)}
+
+/* Stats bar */
+.stats{display:flex;gap:10px;margin-bottom:14px}
+.stat-box{flex:1;background:var(--card);border-radius:10px;padding:12px;text-align:center;box-shadow:var(--shadow)}
+.stat-num{font-size:22px;font-weight:800;color:var(--primary)}
+.stat-label{font-size:11px;color:var(--text-light);margin-top:2px}
+
+/* Empty state */
+.empty{text-align:center;padding:40px 20px;color:var(--text-light)}
+.empty svg{width:48px;height:48px;stroke:var(--border);margin-bottom:12px}
+.empty p{font-size:14px}
+
+/* Toast */
+.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%) translateY(-100px);background:var(--success);color:#fff;padding:12px 24px;border-radius:30px;font-size:14px;font-weight:600;z-index:200;transition:.4s;box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.error{background:var(--danger)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150;display:none;align-items:flex-end;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:var(--radius) var(--radius) 0 0;padding:24px 16px;width:100%;max-width:500px;max-height:85vh;overflow-y:auto;animation:slideUp .3s}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-header h3{font-size:17px;font-weight:700}
+.modal-close{width:32px;height:32px;border:none;background:#f0f0f0;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* Hidden file input */
+input[type="file"].hidden-input{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
+
+/* Loading overlay */
+.loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;display:none;align-items:center;justify-content:center;flex-direction:column}
+.loading-overlay.show{display:flex}
+.spinner{width:48px;height:48px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{color:#fff;font-size:15px;font-weight:600;margin-top:16px}
+.loading-sub{color:rgba(255,255,255,.7);font-size:12px;margin-top:4px}
+
+
+/* API Key modal */
+.apikey-input{font-family:monospace;font-size:13px;letter-spacing:1px}
+
+/* Market Search Panel (VGT Store + eBay) */
+.market-panel{margin-top:10px;padding:12px;background:#f8f9fa;border-radius:10px;border:1px solid var(--border)}
+.market-panel-header{font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.market-query-label{font-size:11px;color:var(--text-light);margin-bottom:8px;word-break:break-all;background:#fff;padding:5px 8px;border-radius:6px;border:1px solid var(--border)}
+.vgt-item{display:flex;justify-content:space-between;align-items:flex-start;padding:9px 10px;background:#fff;border-radius:8px;margin-bottom:5px;border:1.5px solid #c8e6c9;gap:8px;cursor:pointer;text-decoration:none;transition:.15s}
+.vgt-item:active{transform:scale(.98)}
+.vgt-item-title{font-size:12px;color:var(--text);line-height:1.4;flex:1}
+.vgt-item-price{font-size:13px;font-weight:800;color:var(--primary);white-space:nowrap}
+.vgt-loading{font-size:12px;color:var(--text-light);padding:8px 0;display:flex;align-items:center;gap:6px}
+.vgt-mini-spinner{width:14px;height:14px;border:2px solid #ddd;border-top-color:var(--primary-light);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+.vgt-none{font-size:12px;color:var(--text-light);padding:6px 0;text-align:center}
+.vgt-see-all{display:block;text-align:center;font-size:12px;color:var(--primary);font-weight:600;padding:7px;border:1.5px solid #c8e6c9;border-radius:8px;text-decoration:none;margin-top:6px;background:#fff}
+.btn-market{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:.2s}
+.btn-market:active{transform:scale(.97)}
+.btn-market-vgt{background:var(--primary);color:#fff;margin-bottom:6px}
+.btn-ebay-inline{background:#D97757;color:#fff;margin-top:6px;border-radius:8px;padding:10px;font-size:13px;font-weight:700;border:none;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:5px;transition:.2s}
+.btn-ebay-inline:active{transform:scale(.97)}
+.market-divider{height:1px;background:var(--border);margin:8px 0}
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <span class="topbar-title">Golf Club Register</span>
+  <button class="topbar-btn" id="apikey-btn" onclick="openApiKeyModal()">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+    <span id="apikey-label">Set API Key</span>
+  </button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text">Analyzing photos...</div>
+  <div class="loading-sub">Claude Vision AI is reading your club</div>
+</div>
+
+<!-- ============ SCREEN 1: CAPTURE ============ -->
+<div class="screen active" id="screen-capture">
+  <div class="header">
+    <p>Capture club images for AI analysis</p>
+  </div>
+
+  <!-- Type pre-selection -->
+  <div class="card" style="padding:12px 16px">
+    <div class="card-title" style="margin-bottom:8px">Club Type <span style="font-size:11px;font-weight:400;color:var(--text-light)">(select before capturing)</span></div>
+    <select class="form-input" id="capture-type" onchange="onCaptureTypeChange()">
+      <option value="">-- Select Type --</option>
+      <option value="Driver">Driver</option>
+      <option value="Wood">Wood</option>
+      <option value="Hybrid">Hybrid</option>
+      <option value="Iron Set">Iron Set</option>
+      <option value="Wedge">Wedge</option>
+      <option value="Putter">Putter</option>
+      <option value="Full Set">Full Set</option>
+      <option value="Etc">Etc</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="14" height="14" rx="2"/><circle cx="9" cy="9" r="3"/></svg>
+      Head Photos <span class="badge" id="head-count">0 / 3</span>
+    </div>
+    <div class="capture-grid">
+      <div class="capture-box" onclick="captureImage('head',0)">
+        <div class="check"><svg width="12" height="12" fill="none" stroke="#fff" stroke-width="3"><polyline points="2,6 5,9 10,3"/></svg></div>
+        <img class="thumb" id="thumb-head-0" style="display:none">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" id="icon-head-0"><rect x="4" y="4" width="28" height="28" rx="4"/><circle cx="18" cy="18" r="6"/><circle cx="27" cy="9" r="2"/></svg>
+        <div class="label">Head 1</div>
+        <div class="sub" id="head1-sub">Brand / Model</div>
+      </div>
+      <div class="capture-box" onclick="captureImage('head',1)">
+        <div class="check"><svg width="12" height="12" fill="none" stroke="#fff" stroke-width="3"><polyline points="2,6 5,9 10,3"/></svg></div>
+        <img class="thumb" id="thumb-head-1" style="display:none">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" id="icon-head-1"><rect x="4" y="4" width="28" height="28" rx="4"/><circle cx="18" cy="18" r="6"/><circle cx="27" cy="9" r="2"/></svg>
+        <div class="label">Head 2</div>
+        <div class="sub" id="head2-sub">Model / Degree</div>
+      </div>
+      <div class="capture-box" onclick="captureImage('head',2)">
+        <div class="check"><svg width="12" height="12" fill="none" stroke="#fff" stroke-width="3"><polyline points="2,6 5,9 10,3"/></svg></div>
+        <img class="thumb" id="thumb-head-2" style="display:none">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" id="icon-head-2"><rect x="4" y="4" width="28" height="28" rx="4"/><circle cx="18" cy="18" r="6"/><circle cx="27" cy="9" r="2"/></svg>
+        <div class="label">Head 3</div>
+        <div class="sub" id="head3-sub">Degree</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="9" y1="2" x2="9" y2="16"/><line x1="5" y1="4" x2="13" y2="4"/></svg>
+      Shaft Photos <span class="badge" id="shaft-count">0 / 3</span>
+    </div>
+    <div class="capture-grid">
+      <div class="capture-box" onclick="captureImage('shaft',0)">
+        <div class="check"><svg width="12" height="12" fill="none" stroke="#fff" stroke-width="3"><polyline points="2,6 5,9 10,3"/></svg></div>
+        <img class="thumb" id="thumb-shaft-0" style="display:none">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" id="icon-shaft-0"><rect x="4" y="4" width="28" height="28" rx="4"/><circle cx="18" cy="18" r="6"/><circle cx="27" cy="9" r="2"/></svg>
+        <div class="label">Shaft 1</div>
+        <div class="sub">Brand / Model</div>
+      </div>
+      <div class="capture-box" onclick="captureImage('shaft',1)">
+        <div class="check"><svg width="12" height="12" fill="none" stroke="#fff" stroke-width="3"><polyline points="2,6 5,9 10,3"/></svg></div>
+        <img class="thumb" id="thumb-shaft-1" style="display:none">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" id="icon-shaft-1"><rect x="4" y="4" width="28" height="28" rx="4"/><circle cx="18" cy="18" r="6"/><circle cx="27" cy="9" r="2"/></svg>
+        <div class="label">Shaft 2</div>
+        <div class="sub">Model / Flex / Wt</div>
+      </div>
+      <div class="capture-box" onclick="captureImage('shaft',2)">
+        <div class="check"><svg width="12" height="12" fill="none" stroke="#fff" stroke-width="3"><polyline points="2,6 5,9 10,3"/></svg></div>
+        <img class="thumb" id="thumb-shaft-2" style="display:none">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" id="icon-shaft-2"><rect x="4" y="4" width="28" height="28" rx="4"/><circle cx="18" cy="18" r="6"/><circle cx="27" cy="9" r="2"/></svg>
+        <div class="label">Shaft 3</div>
+        <div class="sub">Flex / Weight</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" id="btn-analyze" disabled onclick="analyzePhotos()">
+    Analyze with AI
+  </button>
+
+  <input type="file" accept="image/*" capture="environment" class="hidden-input" id="file-head-0" onchange="onCapture('head',0,this)">
+  <input type="file" accept="image/*" capture="environment" class="hidden-input" id="file-head-1" onchange="onCapture('head',1,this)">
+  <input type="file" accept="image/*" capture="environment" class="hidden-input" id="file-head-2" onchange="onCapture('head',2,this)">
+  <input type="file" accept="image/*" capture="environment" class="hidden-input" id="file-shaft-0" onchange="onCapture('shaft',0,this)">
+  <input type="file" accept="image/*" capture="environment" class="hidden-input" id="file-shaft-1" onchange="onCapture('shaft',1,this)">
+  <input type="file" accept="image/*" capture="environment" class="hidden-input" id="file-shaft-2" onchange="onCapture('shaft',2,this)">
+</div>
+
+<!-- ============ SCREEN 2: EDIT ============ -->
+<div class="screen" id="screen-edit">
+  <div class="header">
+    <h1>Club Details</h1>
+    <p>Verify and edit recognized info</p>
+  </div>
+
+  <!-- Thumbnails -->
+  <div class="card" style="padding:12px">
+    <div style="display:flex;gap:8px;overflow-x:auto">
+      <img id="preview-0" style="height:60px;border-radius:8px;flex-shrink:0" src="">
+      <img id="preview-1" style="height:60px;border-radius:8px;flex-shrink:0" src="">
+      <img id="preview-2" style="height:60px;border-radius:8px;flex-shrink:0" src="">
+      <img id="preview-3" style="height:60px;border-radius:8px;flex-shrink:0" src="">
+      <img id="preview-4" style="height:60px;border-radius:8px;flex-shrink:0" src="">
+      <img id="preview-5" style="height:60px;border-radius:8px;flex-shrink:0" src="">
+    </div>
+  </div>
+
+  <!-- Club Info -->
+  <div class="card">
+    <div class="card-title">Club Info</div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <select class="form-input" id="f-type">
+        <option value="Driver">Driver</option>
+        <option value="Wood">Wood</option>
+        <option value="Hybrid">Hybrid</option>
+        <option value="Iron Set">Iron Set</option>
+        <option value="Wedge">Wedge</option>
+        <option value="Putter">Putter</option>
+        <option value="Full Set">Full Set</option>
+        <option value="Etc">Etc</option>
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">Brand</label>
+        <input class="form-input" id="f-brand" placeholder="e.g. TaylorMade">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Model</label>
+        <input class="form-input" id="f-model" placeholder="e.g. SIM2 MAX">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">Loft / Degrees</label>
+        <input class="form-input" id="f-degrees" placeholder="e.g. 10.5" type="number" step="0.1">
+      </div>
+      <div class="form-group" id="number-group">
+        <label class="form-label">Number / Pcs</label>
+        <input class="form-input" id="f-number" placeholder="e.g. 3H, 7pcs">
+        <!-- Wood/Hybrid mode: club number selector (hidden by default) -->
+        <select class="form-input" id="f-club-number" style="display:none"></select>
+        <!-- Etc type: single iron datalist -->
+        <datalist id="dl-single-iron">
+          <option value="#4 Single Iron">
+          <option value="#5 Single Iron">
+          <option value="#6 Single Iron">
+          <option value="#7 Single Iron">
+          <option value="#8 Single Iron">
+          <option value="#9 Single Iron">
+          <option value="AW Single Iron">
+          <option value="SW Single Iron">
+          <option value="PW Single Iron">
+        </datalist>
+      </div>
+    </div>
+    <!-- Iron Set pcs breakdown (shown only when Type = Iron Set) -->
+    <div class="form-group" id="iron-pcs-group" style="display:none">
+      <label class="form-label">Pcs Breakdown (e.g. 7pcs(4-P))</label>
+      <input class="form-input" id="f-iron-pcs" placeholder="e.g. 7pcs(4-P) or 6pcs(7-P,A,S)">
+    </div>
+    <!-- Putter length (shown only when Type = Putter) -->
+    <div class="form-group" id="putter-length-group" style="display:none">
+      <label class="form-label">Putter Length</label>
+      <select class="form-input" id="f-putter-length">
+        <option value='32"'>32"</option>
+        <option value='33"'>33"</option>
+        <option value='34"' selected>34"</option>
+        <option value='35"'>35"</option>
+        <option value="custom">*.*"  (custom)</option>
+      </select>
+      <div id="putter-length-custom-wrap" style="display:none; margin-top:6px;">
+        <input type="number" step="0.5" min="28" max="42" class="form-input" id="f-putter-length-custom" placeholder="e.g. 33.5" style="width:100%;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Shaft Info -->
+  <div class="card">
+    <div class="card-title">Shaft Info</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">Shaft Brand</label>
+        <input class="form-input" id="f-shaft-brand" placeholder="e.g. Fujikura">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Shaft Model</label>
+        <input class="form-input" id="f-shaft-model" placeholder="e.g. Ventus Blue 60">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">Flex</label>
+        <select class="form-input" id="f-flex">
+          <option value="-">— (N/A)</option>
+          <option value="R">R — Regular</option>
+          <option value="S">S — Stiff</option>
+          <option value="R(S)">R(S) — Stiff/Regular</option>
+          <option value="X">X — eXtra Stiff</option>
+          <option value="L">L — Ladies</option>
+          <option value="A">A — Senior</option>
+          <option value="Uni">Uni — Uniflex</option>
+          <option value="W">W — Wdg</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Weight (g)</label>
+        <input class="form-input" id="f-shaft-weight" placeholder="e.g. 65" type="number">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Material</label>
+        <select class="form-input" id="f-shaft-material">
+          <option value="Graphite">Graphite</option>
+          <option value="Steel">Steel</option>
+          <option value="SteelFiber">SteelFiber</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Options -->
+  <div class="card">
+    <div class="card-title">Options</div>
+    <div class="form-group">
+      <label class="form-label">Gender</label>
+      <div class="toggle-group" id="tg-gender">
+        <button class="toggle-option active" data-val="Men" onclick="setToggle('tg-gender',this)">Men</button>
+        <button class="toggle-option" data-val="Women" onclick="setToggle('tg-gender',this)">Women</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Handed</label>
+      <div class="toggle-group" id="tg-handed">
+        <button class="toggle-option active" data-val="Right" onclick="setToggle('tg-handed',this)">Right</button>
+        <button class="toggle-option" data-val="Left" onclick="setToggle('tg-handed',this)">Left</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Grip</label>
+      <div class="toggle-group" id="tg-grip">
+        <button class="toggle-option active" data-val="Standard" onclick="setToggle('tg-grip',this);regenerateFields()">Standard</button>
+        <button class="toggle-option" data-val="Midsize" onclick="setToggle('tg-grip',this);regenerateFields()">Midsize</button>
+        <button class="toggle-option" data-val="Jumbo" onclick="setToggle('tg-grip',this);regenerateFields()">Jumbo</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Condition / Notes</label>
+      <select class="form-input" id="f-condition">
+        <option value="">— None</option>
+        <option value="*CHECK">*CHECK</option>
+        <option value="(New)">(New) — Brand New</option>
+        <option value="(Like new)">(Like new) — Like new</option>
+        <option value="(Scratches)">(Scratches) — Minor scratches</option>
+        <option value="(Dent)">(Dent) — Minor dent on head</option>
+        <option value="(-custom)">(-*.*") — *.*" Shorter</option>
+        <option value="(+custom)">(+*.*") — *.*" Longer</option>
+      </select>
+      <div id="length-input-wrap" style="display:none; margin-top:6px;">
+        <input type="number" step="0.5" min="0.5" max="6" class="form-input" id="f-condition-length" placeholder='inches  e.g. 1 or 0.5' style="width:100%;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Generated Fields -->
+  <div class="card">
+    <div class="card-title">Generated Fields</div>
+    <div class="form-group">
+      <label class="form-label">TITLE</label>
+      <input class="form-input" id="f-title" readonly style="background:#f8f9fa">
+    </div>
+    <div class="form-group">
+      <label class="form-label">SPEC</label>
+      <textarea class="form-input" id="f-spec" readonly style="background:#f8f9fa"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+      <button class="btn-sm btn-outline" onclick="regenerateFields()">&#8635; Regenerate</button>
+      <button onclick="triggerMarketSearch()"
+        style="flex:1;padding:10px 12px;font-size:13px;font-weight:700;background:var(--primary);color:#fff;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:.2s"
+        id="btn-market-search">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        VGT Price
+      </button>
+    </div>
+
+    <!-- Market Search Panel (hidden until searched) -->
+    <div id="market-search-panel" style="display:none;margin-bottom:10px">
+      <div class="market-panel">
+        <div class="market-panel-header">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          VGT Store Results
+        </div>
+        <div class="market-query-label" id="market-query-label"></div>
+        <div id="vgt-results"></div>
+        <div class="market-divider"></div>
+        <button class="btn-ebay-inline" onclick="triggerEbaySearch()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M2 5h4v14H2V5zm16 0h4v14h-4V5zM8 5h8v14H8V5z"/></svg>
+          Open eBay Canada with this title
+        </button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">Price ($)</label>
+        <input class="form-input" id="f-price" type="number" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cost ($)</label>
+        <input class="form-input" id="f-cost" type="number" placeholder="0">
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-outline" onclick="saveOnly()">Save</button>
+    <button class="btn btn-primary" onclick="saveEntry()">Save &amp; Next</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 3: LIST ============ -->
+<div class="screen" id="screen-list">
+  <div class="header">
+    <h1>Registered Clubs</h1>
+    <p id="list-subtitle">0 items registered</p>
+  </div>
+
+  <div class="stats" id="stats-bar">
+    <div class="stat-box"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total</div></div>
+    <div class="stat-box"><div class="stat-num" id="stat-today">0</div><div class="stat-label">Today</div></div>
+    <div class="stat-box"><div class="stat-num" id="stat-value">$0</div><div class="stat-label">Value</div></div>
+  </div>
+
+  <div id="list-empty" class="empty">
+    <svg fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="10" width="36" height="28" rx="3"/><polyline points="6,14 24,26 42,14"/></svg>
+    <p>No clubs registered yet.<br>Start by capturing photos!</p>
+  </div>
+
+  <div class="table-wrap" id="list-table-wrap" style="display:none">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Type</th><th>Title</th><th>Price</th><th></th></tr>
+      </thead>
+      <tbody id="list-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="btn-row" style="margin-top:16px">
+    <button class="btn btn-accent" onclick="exportCSV()">Export CSV</button>
+    <button class="btn btn-outline" onclick="clearAll()">Clear All</button>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Edit Entry</h3>
+      <button class="modal-close" onclick="closeEditModal()">&times;</button>
+    </div>
+    <div id="edit-modal-body"></div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="saveEditModal()">Save Changes</button>
+  </div>
+</div>
+
+<!-- API Key Modal -->
+<div class="modal-overlay" id="apikey-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Claude API Key</h3>
+      <button class="modal-close" onclick="closeApiKeyModal()">&times;</button>
+    </div>
+    <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">
+      Enter your Anthropic API key to enable AI photo analysis.<br>
+      Your key is stored locally on this device only.
+    </p>
+    <div class="form-group">
+      <label class="form-label">API Key</label>
+      <input class="form-input apikey-input" id="apikey-input" type="password" placeholder="sk-ant-api03-...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Model</label>
+      <select class="form-input" id="model-select">
+        <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (Recommended)</option>
+        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (Fast)</option>
+        <option value="claude-opus-4-6">Claude Opus 4.6 (Best)</option>
+      </select>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveApiKey()">Save Key</button>
+      <button class="btn btn-outline" onclick="clearApiKey()" style="color:var(--danger);border-color:var(--danger)">Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Navigation -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="showScreen('capture')" id="nav-capture">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1.5"/></svg>
+    Capture
+  </button>
+  <button class="nav-btn" onclick="showScreen('edit')" id="nav-edit">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    Edit
+  </button>
+  <button class="nav-btn" onclick="showScreen('list')" id="nav-list">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    List
+  </button>
+</nav>
+
+<script>
+/* ================================================================
+   STATE
+   ================================================================ */
+const STATE = {
+  images: { head: [null, null, null], shaft: [null, null, null] },
+  entries: (() => {
+    try {
+      return JSON.parse(localStorage.getItem('golf_entries') || '[]');
+    } catch(e) {
+      console.warn('golf_entries 손상 — 초기화합니다.', e);
+      localStorage.removeItem('golf_entries');
+      return [];
+    }
+  })(),
+  editIndex: -1,
+  gender: 'Men',
+  handed: 'Right',
+  grip: 'Standard'
+};
+
+
+/* ================================================================
+   NAVIGATION
+   ================================================================ */
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'list') renderList();
+}
+
+/* ================================================================
+   TOAST
+   ================================================================ */
+function toast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+/* ================================================================
+   LOADING
+   ================================================================ */
+function showLoading(msg, sub) {
+  const el = document.getElementById('loading');
+  el.querySelector('.loading-text').textContent = msg || 'Analyzing photos...';
+  el.querySelector('.loading-sub').textContent = sub || '';
+  el.classList.add('show');
+}
+function hideLoading() {
+  document.getElementById('loading').classList.remove('show');
+}
+
+/* ================================================================
+   TOGGLE
+   ================================================================ */
+function setToggle(groupId, btn) {
+  const group = document.getElementById(groupId);
+  group.querySelectorAll('.toggle-option').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function getToggleVal(groupId) {
+  const active = document.getElementById(groupId).querySelector('.toggle-option.active');
+  return active ? active.dataset.val : '';
+}
+function setToggleVal(groupId, val) {
+  const group = document.getElementById(groupId);
+  group.querySelectorAll('.toggle-option').forEach(b => {
+    b.classList.toggle('active', b.dataset.val === val);
+  });
+}
+
+/* ================================================================
+   API KEY MANAGEMENT
+   ================================================================ */
+function getApiKey() { return localStorage.getItem('claude_api_key') || ''; }
+function getModel() { return localStorage.getItem('claude_model') || 'claude-sonnet-4-6'; }
+function getVGTToken() { return localStorage.getItem('vgt_storefront_token') || ''; }
+/* API 키 마스킹: 앞 7자 + ... + 끝 4자만 표시 (보안) */
+function maskApiKey(key) {
+  if (!key) return '';
+  if (key.length <= 11) return '●'.repeat(key.length);
+  return key.substring(0, 7) + '...' + key.slice(-4);
+}
+
+function updateApiKeyUI() {
+  const btn = document.getElementById('apikey-btn');
+  const label = document.getElementById('apikey-label');
+  if (getApiKey()) {
+    btn.classList.add('has-key');
+    label.textContent = 'API Key ✓';
+  } else {
+    btn.classList.remove('has-key');
+    label.textContent = 'Set API Key';
+  }
+}
+
+function openApiKeyModal() {
+  const existing = getApiKey();
+  const inp = document.getElementById('apikey-input');
+  inp.value = '';
+  inp.placeholder = existing ? maskApiKey(existing) + '  (변경 시에만 입력)' : 'sk-ant-api03-...';
+  document.getElementById('model-select').value = getModel();
+  document.getElementById('apikey-modal').classList.add('show');
+}
+function closeApiKeyModal() {
+  document.getElementById('apikey-modal').classList.remove('show');
+}
+function saveApiKey() {
+  const key = document.getElementById('apikey-input').value.trim();
+  const model = document.getElementById('model-select').value;
+  if (key) {
+    localStorage.setItem('claude_api_key', key);
+    toast('API Key saved!');
+  }
+  localStorage.setItem('claude_model', model);
+  updateApiKeyUI();
+  closeApiKeyModal();
+}
+function clearApiKey() {
+  localStorage.removeItem('claude_api_key');
+  localStorage.removeItem('claude_model');
+  updateApiKeyUI();
+  closeApiKeyModal();
+  toast('API Key removed');
+}
+
+// Init
+updateApiKeyUI();
+
+// Show API key modal on first visit
+if (!getApiKey()) {
+  setTimeout(() => openApiKeyModal(), 600);
+}
+
+/* ================================================================
+   IMAGE CAPTURE
+   ================================================================ */
+function captureImage(part, idx) {
+  document.getElementById(`file-${part}-${idx}`).click();
+}
+
+// Sequence: head0 → head1 → head2 → shaft0 → shaft1 → shaft2
+const CAPTURE_SEQUENCE = [
+  { part: 'head',  idx: 0 },
+  { part: 'head',  idx: 1 },
+  { part: 'head',  idx: 2 },
+  { part: 'shaft', idx: 0 },
+  { part: 'shaft', idx: 1 },
+  { part: 'shaft', idx: 2 },
+];
+
+function onCapture(part, idx, input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  resizeImage(file, 1024, function(dataUrl) {
+    STATE.images[part][idx] = dataUrl;
+    const thumb = document.getElementById(`thumb-${part}-${idx}`);
+    const icon  = document.getElementById(`icon-${part}-${idx}`);
+    thumb.src = dataUrl;
+    thumb.style.display = 'block';
+    if (icon) icon.style.display = 'none';
+    thumb.parentElement.classList.add('captured');
+    updateCaptureStatus();
+  });
+}
+
+function resizeImage(file, maxDim, cb) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      let w = img.width, h = img.height;
+      if (w > maxDim || h > maxDim) {
+        const ratio = Math.min(maxDim / w, maxDim / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      cb(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateCaptureStatus() {
+  const hc = STATE.images.head.filter(Boolean).length;
+  const sc = STATE.images.shaft.filter(Boolean).length;
+  document.getElementById('head-count').textContent = `${hc} / 3`;
+  document.getElementById('shaft-count').textContent = `${sc} / 3`;
+  // Head 1장 이상이면 Analyze 활성화 (Shaft 촬영 스킵 가능)
+  document.getElementById('btn-analyze').disabled = !(hc >= 1);
+}
+
+/* Capture 화면 Type 선택 시 Head 라벨 동적 변경 */
+function onCaptureTypeChange() {
+  const type = document.getElementById('capture-type').value;
+  const isWH = (type === 'Wood' || type === 'Hybrid');
+  document.getElementById('head1-sub').textContent = isWH ? 'Brand / Model' : 'Brand / Model';
+  document.getElementById('head2-sub').textContent = isWH ? 'Model / Degree' : 'Model / Degree';
+  document.getElementById('head3-sub').textContent = isWH ? 'Degree'         : 'Degree';
+}
+
+function resetCapture() {
+  STATE.images = { head: [null, null, null], shaft: [null, null, null] };
+  // capture-type 및 head 라벨은 유지 (동일 type 연속 촬영을 위해)
+  ['head-0','head-1','head-2','shaft-0','shaft-1','shaft-2'].forEach(key => {
+    const [part, idx] = key.split('-');
+    const thumb = document.getElementById(`thumb-${part}-${idx}`);
+    const icon = document.getElementById(`icon-${part}-${idx}`);
+    thumb.style.display = 'none';
+    thumb.src = '';
+    if (icon) icon.style.display = '';
+    thumb.parentElement.classList.remove('captured');
+    document.getElementById(`file-${part}-${idx}`).value = '';
+  });
+  updateCaptureStatus();
+}
+
+/* ================================================================
+   CLAUDE VISION API
+   ================================================================ */
+async function callClaudeVision(images, preType = '') {
+  const apiKey = getApiKey();
+  const model = getModel();
+  if (!apiKey) throw new Error('No API key set');
+
+  // Photo 1: Head Brand/Model, Photo 2: Head Model/Degree, Photo 3: Head Degree
+  // Photo 4: Shaft Brand/Model, Photo 5: Shaft Model/Flex/Weight, Photo 6: Shaft Flex/Weight
+  const labels = [
+    'Head 1 — Brand & Model name',
+    'Head 2 — Model name & Loft degree',
+    'Head 3 — Loft degree (close-up)',
+    'Shaft 1 — Shaft brand & model name',
+    'Shaft 2 — Shaft model, flex & weight label',
+    'Shaft 3 — Shaft flex & weight (close-up)'
+  ];
+
+  const content = [];
+  images.forEach((dataUrl, i) => {
+    if (!dataUrl) return; // null 이미지 스킵
+    const base64 = dataUrl.split(',')[1];
+    const mediaType = dataUrl.split(';')[0].split(':')[1];
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: mediaType, data: base64 }
+    });
+    content.push({ type: 'text', text: `[Photo ${i+1}: ${labels[i]}]` });
+  });
+
+  // Build type-specific prompt hints
+  const typeHint = preType
+    ? `\nThis club type is confirmed: ${preType}. Set club_type to "${preType}".`
+    : '';
+  // 모든 타입에 Loft 힌트 적용 (Photo 2는 항상 Loft 각도 전용)
+  const loftHint = `\nIMPORTANT: Head 2 and Head 3 photos are intentionally focused on the loft angle number printed on the club head. Read the exact loft degrees number from Head 2~3 and return it as "loft".`;
+
+  content.push({
+    type: 'text',
+    text: `이 골프채 사진(최대 6장)을 분석해줘.${typeHint}${loftHint}
+다음 정보를 JSON으로 추출해줘:
+- brand: 공식 브랜드명 (예: Titleist, Callaway, TaylorMade, Tour Edge)
+- model: 모델명 (예: TSi3, MAVRIK, Stealth Plus+, Exotics XCG7)
+- logo_text: 클럽 헤드에 보이는 모든 텍스트/로고/코드를 공백으로 구분해서 나열 (예: "XCGB EXOTICS 9" 또는 "SIM2 MAX TaylorMade"). brand/model과 별개로 헤드에 각인된 모든 글자 포함
+- club_type: ${preType || 'Driver/Wood/Hybrid/Iron Set/Wedge/Putter'}
+- loft: 로프트 각도 숫자 (Head 2~3에서 읽기, 예: 10.5)
+- shaft_brand: 샤프트 브랜드 (Shaft 1에서 읽기)
+- shaft_model: 샤프트 모델명 (Shaft 1~2에서 읽기, 예: Ventus Blue 6, TENSEI CK Pro)
+- shaft_flex: 플렉스 (Shaft 2~3에서 읽기, R/S/SR/X/L/A/Uni)
+- shaft_weight: 무게 (Shaft 2~3에서 읽기, 55g, 65g 등)
+- shaft_material: Graphite, Steel, 또는 SteelFiber
+- gender: Men 또는 Women (보이면)
+- handed: Right 또는 Left (보이면)
+JSON만 출력해줘. 다른 텍스트 없이.`
+  });
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: model,
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: content }]
+    })
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  const text = data.content[0].text.trim();
+
+  // Extract JSON (handle markdown code blocks)
+  let jsonStr = text;
+  const codeMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeMatch) jsonStr = codeMatch[1].trim();
+
+  return JSON.parse(jsonStr);
+}
+
+
+/* ================================================================
+   ANALYZE PHOTOS (main flow)
+   ================================================================ */
+async function analyzePhotos() {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    openApiKeyModal();
+    return;
+  }
+
+  const allImages = [...STATE.images.head, ...STATE.images.shaft];
+  const preType = document.getElementById('capture-type').value;
+  showLoading('Analyzing photos...', 'Claude Vision AI is reading your club');
+
+  try {
+    const aiResult = await callClaudeVision(allImages, preType);
+    console.log('AI Result:', aiResult);
+
+    // Go to edit screen
+    populateEditForm(aiResult);
+    hideLoading();
+    showScreen('edit');
+    toast('AI analysis complete!');
+
+  } catch (err) {
+    hideLoading();
+    console.error('API Error:', err);
+    if (err.message.includes('API key') || err.message.includes('401') || err.message.includes('authentication')) {
+      toast('Invalid API key. Please check settings.', true);
+      openApiKeyModal();
+    } else {
+      toast('Analysis failed: ' + err.message, true);
+      // Fall back to manual entry
+      goToEditManual();
+    }
+  }
+}
+
+function populateEditForm(aiResult, matches = []) {
+  // Set preview images
+  const imgs = [...STATE.images.head, ...STATE.images.shaft];
+  imgs.forEach((src, i) => {
+    const el = document.getElementById('preview-' + i);
+    if (src) { el.src = src; el.style.display = ''; }
+    else el.style.display = 'none';
+  });
+
+  // Populate fields from AI result
+  const typeMap = {
+    'driver': 'Driver', 'wood': 'Wood', 'hybrid': 'Hybrid',
+    'iron set': 'Iron Set', 'iron': 'Iron Set',
+    'wedge': 'Wedge', 'putter': 'Putter'
+  };
+  const aiType = (aiResult.club_type || 'Driver').toLowerCase();
+  // Pre-selected type takes priority over AI result
+  const preType = document.getElementById('capture-type').value;
+  document.getElementById('f-type').value = preType || typeMap[aiType] || 'Driver';
+  updateClubNumberSelector();
+  const effectiveType = document.getElementById('f-type').value;
+  document.getElementById('f-brand').value = aiResult.brand || '';
+  document.getElementById('f-model').value = aiResult.model || '';
+  document.getElementById('f-degrees').value = aiResult.loft ? parseFloat(aiResult.loft) || '' : '';
+  document.getElementById('f-number').value = '';
+  document.getElementById('f-iron-pcs').value = '';
+  document.getElementById('iron-pcs-group').style.display =
+    (effectiveType === 'Iron Set') ? '' : 'none';
+  // Putter length: show group, set default 34"
+  const isPutter = (effectiveType === 'Putter');
+  document.getElementById('putter-length-group').style.display = isPutter ? '' : 'none';
+  document.getElementById('f-putter-length').value = isPutter ? '34"' : '';
+  document.getElementById('putter-length-custom-wrap').style.display = 'none';
+  document.getElementById('f-putter-length-custom').value = '';
+  document.getElementById('f-condition').value = '';
+  document.getElementById('f-condition-length').value = '';
+  document.getElementById('length-input-wrap').style.display = 'none';
+  document.getElementById('f-shaft-brand').value = aiResult.shaft_brand || '';
+  document.getElementById('f-shaft-model').value = aiResult.shaft_model || '';
+  // Normalize flex: SR → R(S) / AI값 없으면 모든 타입 -(N/A) default
+  const rawFlex = (aiResult.shaft_flex || '-').toUpperCase().trim();
+  const flexNorm = rawFlex === 'SR' ? 'R(S)' : rawFlex;
+  document.getElementById('f-flex').value = flexNorm;
+  const weightNum = aiResult.shaft_weight ? String(aiResult.shaft_weight).replace(/[^\d]/g, '') : '';
+  document.getElementById('f-shaft-weight').value = weightNum;
+  document.getElementById('f-shaft-material').value = aiResult.shaft_material || 'Graphite';
+  document.getElementById('f-price').value = '';
+  document.getElementById('f-cost').value = '';
+
+  // Restore persistent toggles
+  if (aiResult.gender && (aiResult.gender === 'Men' || aiResult.gender === 'Women')) {
+    setToggleVal('tg-gender', aiResult.gender);
+  } else {
+    setToggleVal('tg-gender', STATE.gender);
+  }
+  if (aiResult.handed && (aiResult.handed === 'Right' || aiResult.handed === 'Left')) {
+    setToggleVal('tg-handed', aiResult.handed);
+  } else {
+    setToggleVal('tg-handed', STATE.handed);
+  }
+  setToggleVal('tg-grip', STATE.grip);
+
+  // Reset market search panel
+  document.getElementById('market-search-panel').style.display = 'none';
+  document.getElementById('vgt-results').innerHTML = '';
+  document.getElementById('market-query-label').textContent = '';
+  regenerateFields();
+}
+
+
+/* ================================================================
+   MARKET SEARCH — VGT Store (Shopify) + eBay Canada
+   ================================================================ */
+async function triggerMarketSearch() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { toast('TITLE을 먼저 생성해 주세요.', true); return; }
+
+  const panel      = document.getElementById('market-search-panel');
+  const resultsEl  = document.getElementById('vgt-results');
+  const queryLabel = document.getElementById('market-query-label');
+
+  panel.style.display = 'block';
+  queryLabel.textContent = '검색: ' + title;
+  resultsEl.innerHTML = `<div class="vgt-loading"><div class="vgt-mini-spinner"></div>VGT Store 조회 중...</div>`;
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // TITLE 내용 그대로 사용 ("/" 포함) — "()" "°" 만 제거
+  const searchQ = title.replace(/[\(\)°"]/g, ' ').replace(/\s+/g, ' ').trim();
+  const shopifyUrl = `https://golftradingpost.ca/search/suggest.json?q=${encodeURIComponent(searchQ)}&resources[type]=product&resources[limit]=6`;
+  const proxyUrl   = `https://corsproxy.io/?${encodeURIComponent(shopifyUrl)}`;
+
+  // 수동 타임아웃 (15초)
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const resp = await fetch(proxyUrl, { signal: controller.signal });
+    clearTimeout(timer);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data     = await resp.json();
+    const products = data?.resources?.results?.products || [];
+
+    if (products.length === 0) {
+      resultsEl.innerHTML = `<div class="vgt-none">VGT Store에 일치하는 상품이 없습니다.</div>`;
+    } else {
+      resultsEl.innerHTML = products.map(p => {
+        const rawPrice = parseFloat(p.price);
+        const price    = isNaN(rawPrice) ? '' :
+          ('$' + (rawPrice > 1000 ? (rawPrice / 100).toFixed(0) : rawPrice.toFixed(0)));
+        const url = 'https://golftradingpost.ca' + (p.url || '/products/' + p.handle);
+        return `<a class="vgt-item" href="${escHtml(url)}" target="_blank" rel="noopener">
+          <div class="vgt-item-title">${escHtml(p.title)}</div>
+          ${price ? `<div class="vgt-item-price">${price}</div>` : ''}
+        </a>`;
+      }).join('');
+    }
+    const enc = encodeURIComponent(searchQ);
+    resultsEl.innerHTML += `<a class="vgt-see-all" href="https://golftradingpost.ca/search?q=${enc}" target="_blank" rel="noopener">VGT Store 전체 검색 결과 보기 →</a>`;
+
+  } catch(err) {
+    clearTimeout(timer);
+    console.warn('VGT search error:', err);
+    const enc = encodeURIComponent(searchQ);
+    resultsEl.innerHTML = `
+      <div class="vgt-none">조회 실패 (${escHtml(err.message)})</div>
+      <a class="vgt-see-all" href="https://golftradingpost.ca/search?q=${enc}" target="_blank" rel="noopener">🔍 VGT Store에서 직접 검색 →</a>`;
+  }
+}
+
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+/* ================================================================
+   MANUAL EDIT (fallback when no API key or API fails)
+   ================================================================ */
+function goToEditManual() {
+  const imgs = [...STATE.images.head, ...STATE.images.shaft];
+  imgs.forEach((src, i) => {
+    const el = document.getElementById('preview-' + i);
+    if (src) { el.src = src; el.style.display = ''; }
+    else el.style.display = 'none';
+  });
+
+  document.getElementById('f-type').value = 'Driver';
+  document.getElementById('f-brand').value = '';
+  document.getElementById('f-model').value = '';
+  document.getElementById('f-degrees').value = '';
+  document.getElementById('f-number').value = '';
+  document.getElementById('f-iron-pcs').value = '';
+  document.getElementById('iron-pcs-group').style.display = 'none';
+  document.getElementById('putter-length-group').style.display = 'none';
+  document.getElementById('f-putter-length').value = '34"';
+  document.getElementById('putter-length-custom-wrap').style.display = 'none';
+  document.getElementById('f-putter-length-custom').value = '';
+  document.getElementById('f-condition').value = '';
+  document.getElementById('f-condition-length').value = '';
+  document.getElementById('length-input-wrap').style.display = 'none';
+  document.getElementById('f-shaft-brand').value = '';
+  document.getElementById('f-shaft-model').value = '';
+  document.getElementById('f-flex').value = 'R';
+  document.getElementById('f-shaft-weight').value = '';
+  document.getElementById('f-shaft-material').value = 'Graphite';
+  document.getElementById('f-price').value = '';
+  document.getElementById('f-cost').value = '';
+
+  setToggleVal('tg-gender', STATE.gender);
+  setToggleVal('tg-handed', STATE.handed);
+  setToggleVal('tg-grip', STATE.grip);
+
+  regenerateFields();
+  showScreen('edit');
+}
+
+/* ================================================================
+   IRON SET PCS PARSING
+   e.g. "7pcs(4-P)"    → titlePcs="7pcs",  specPcs="7pcs(#4,5,6,7,8,9,P)"
+        "6pcs(7-P,A,S)"→ titlePcs="6pcs",  specPcs="6pcs(#7,8,9,P,A,S)"
+   Rule: numbers from startNum→9 always sequential; letters appended as-is
+   ================================================================ */
+function parseIronSetPcs(raw) {
+  if (!raw) return { titlePcs: '', specPcs: '' };
+  const s = raw.trim();
+  // Full format: Npcs(start-letters)
+  const m = s.match(/^(\d+)pcs\((\d+)[-,]([^)]+)\)$/i);
+  if (m) {
+    const count    = m[1];
+    const startNum = parseInt(m[2]);
+    // endLetters: 숫자는 제외 (nums 배열과 중복 방지), 문자(P/A/S 등)만 포함
+    const endLetters = m[3].split(',')
+      .map(l => l.trim().toUpperCase())
+      .filter(l => l.length > 0 && isNaN(Number(l)));
+    const nums = [];
+    for (let i = startNum; i <= 9; i++) nums.push(String(i));
+    const all = [...nums, ...endLetters];
+    return { titlePcs: `${count}pcs`, specPcs: `${count}pcs(#${all.join(',')})` };
+  }
+  // Simple format: Npcs
+  const simple = s.match(/^(\d+)pcs$/i);
+  if (simple) return { titlePcs: simple[0], specPcs: simple[0] };
+  return { titlePcs: s, specPcs: s };
+}
+
+/* ================================================================
+   WOOD / HYBRID LOFT REFERENCE TABLE
+   ================================================================ */
+const LOFT_TABLE = {
+  Wood: {
+    Men:   { '2W':12.0,'3W':15.0,'4W':17.0,'5W':18.5,'7W':21.5,'9W':25.0 },
+    Women: { '2W':14.0,'3W':16.5,'4W':18.5,'5W':20.5,'7W':23.5,'9W':27.0 }
+  },
+  Hybrid: {
+    Men:   { '2H':17.0,'3H':19.5,'4H':22.0,'5H':24.5,'6H':27.5,'7H':30.5 },
+    Women: { '2H':19.5,'3H':21.5,'4H':24.0,'5H':26.5,'6H':29.5,'7H':32.0 }
+  }
+};
+
+/* Update the club number selector visibility & options based on type */
+function updateClubNumberSelector() {
+  const type   = document.getElementById('f-type').value;
+  const gender = getToggleVal('tg-gender');
+  const input  = document.getElementById('f-number');
+  const sel    = document.getElementById('f-club-number');
+
+  if (type === 'Wood' || type === 'Hybrid') {
+    input.style.display = 'none';
+    sel.style.display   = '';
+    const table = LOFT_TABLE[type]?.[gender] || LOFT_TABLE[type]?.['Men'];
+    const prev  = sel.value;
+    sel.innerHTML = '<option value="">-- Select --</option>' +
+      Object.entries(table).map(([num, loft]) =>
+        `<option value="${num}" data-loft="${loft}" ${prev===num?'selected':''}>${num} (${loft}°)</option>`
+      ).join('');
+    if (prev) sel.value = prev;
+    // degrees 자동채우기 없음 — AI가 읽은 값 유지
+    sel.onchange = () => { regenerateFields(); };
+  } else if (type === 'Wedge') {
+    input.style.display = 'none';
+    sel.style.display   = '';
+    const prev = sel.value;
+    sel.innerHTML =
+      '<option value="">- (Null)</option>' +
+      '<option value="SW">SW (56.0°)</option>' +
+      '<option value="AW">AW (52.0°)</option>' +
+      '<option value="GW">GW (52.0°)</option>' +
+      '<option value="LW">LW (60.0°)</option>';
+    if (prev) sel.value = prev;
+    // degrees 자동채우기 없음 — AI가 읽은 값 유지, 수동 수정 가능
+    sel.onchange = () => { regenerateFields(); };
+  } else {
+    input.style.display   = '';
+    sel.style.display     = 'none';
+    sel.onchange = null;
+    // Etc type: single iron datalist 연결
+    if (type === 'Etc') {
+      input.setAttribute('list', 'dl-single-iron');
+      input.placeholder = 'e.g. #7 Single Iron, 7pcs';
+    } else {
+      input.removeAttribute('list');
+      input.placeholder = 'e.g. 3H, 7pcs';
+    }
+  }
+}
+
+/* ================================================================
+   EBAY SEARCH — TITLE 필드 내용 그대로 ("/" 포함) ebay.ca 새 탭 열기
+   ================================================================ */
+function triggerEbaySearch() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { toast('TITLE을 먼저 생성해 주세요.', true); return; }
+  const enc     = encodeURIComponent(title + ' used');  // TITLE 전체 + " used"
+  const ebayUrl = `https://www.ebay.ca/sch/i.html?_nkw=${enc}&_sop=15&LH_ItemCondition=3000`;
+  window.open(ebayUrl, '_blank', 'noopener');
+}
+
+/* ================================================================
+   REGENERATE TITLE & SPEC
+   ================================================================ */
+function regenerateFields() {
+  const type = document.getElementById('f-type').value;
+  const brand = document.getElementById('f-brand').value.trim();
+  const model = document.getElementById('f-model').value.trim();
+  const degrees = document.getElementById('f-degrees').value.trim();
+  const gender = getToggleVal('tg-gender');
+  const handed = getToggleVal('tg-handed');
+
+  // Club number: Wood/Hybrid/Wedge use selector; others use text input
+  const isSelector = (type === 'Wood' || type === 'Hybrid' || type === 'Wedge');
+  const isWoodHybrid = (type === 'Wood' || type === 'Hybrid');
+  const sel = document.getElementById('f-club-number');
+  const clubNumRaw = isSelector
+    ? (sel.value || '')
+    : document.getElementById('f-number').value.trim();
+
+  // Build "3H(19.0)" / "5W(18.5)" / "SW(56.0)" tag for Wood/Hybrid/Wedge
+  let clubNumTag = '';
+  if (isSelector && clubNumRaw) {
+    const loftVal = degrees ? parseFloat(degrees).toFixed(1) : '';
+    clubNumTag = loftVal ? `${clubNumRaw}(${loftVal})` : clubNumRaw;
+  }
+
+  // Putter length
+  const putterLenSel = document.getElementById('f-putter-length').value;
+  const putterLenCustom = document.getElementById('f-putter-length-custom').value.trim();
+  const putterLen = (type === 'Putter')
+    ? (putterLenSel === 'custom' ? (putterLenCustom ? putterLenCustom + '"' : '') : putterLenSel)
+    : '';
+
+  const sBrand = document.getElementById('f-shaft-brand').value.trim();
+  const sModel = document.getElementById('f-shaft-model').value.trim();
+  const flex = document.getElementById('f-flex').value;
+  const sWeight = document.getElementById('f-shaft-weight').value.trim();
+  const sMat = document.getElementById('f-shaft-material').value;
+
+  // Iron Set pcs
+  const ironPcsRaw = (type === 'Iron Set') ? document.getElementById('f-iron-pcs').value.trim() : '';
+  const ironPcs = parseIronSetPcs(ironPcsRaw);
+
+  // TITLE
+  let titleParts = [];
+  titleParts.push(`${brand} ${type}`);
+  if (model) titleParts.push(model);
+  if (isSelector && clubNumTag) {
+    titleParts.push(clubNumTag);              // SW(56.0) / 5W(18.5) 등
+  } else if (degrees) {
+    titleParts.push(parseFloat(degrees).toFixed(1));
+  } else if (clubNumRaw) {
+    titleParts.push(clubNumRaw);
+  }
+  // W(Wedge-flex)는 항상 생략, Women + L 조합에서도 L 생략 (Women으로 충분히 Ladies 표시됨)
+  if (flex && flex !== '-' && flex !== 'W' && !(flex === 'L' && gender === 'Women')) titleParts.push(flex);
+  if (ironPcs.titlePcs) titleParts.push(ironPcs.titlePcs);
+  if (gender === 'Women') titleParts.push('Women');
+  if (handed === 'Left') titleParts.push('Lefty');
+  if (putterLen) titleParts.push(putterLen); // Putter: 맨 끝에 길이 추가
+  document.getElementById('f-title').value = titleParts.join(' / ');
+
+  // Flex full name for spec
+  const flexMap = {
+    '-':    '',
+    'R':    'Regular-flex',
+    'S':    'Stiff-flex',
+    'R(S)': 'Stiff/Regular-flex',
+    'X':    'eXtra stiff-flex',
+    'L':    'Ladies-flex',
+    'A':    'A(Senior)-flex',
+    'Uni':  'Uniflex',
+    'W':    'Wedge-flex'
+  };
+  const flexFull = flexMap[flex] ?? (flex + '-flex');
+
+  // SPEC
+  let specParts = [];
+  let shaftStr = [sBrand, sModel, sMat].filter(Boolean).join(' ');
+  if (shaftStr) specParts.push(shaftStr + ' shaft');
+  if (sWeight) specParts.push(sWeight + 'g');
+  if (putterLen) specParts.push(putterLen); // Putter: flex 앞에 길이 추가
+  if (flex && flex !== '-') specParts.push(flexFull);
+  if (ironPcs.specPcs) specParts.push(ironPcs.specPcs);
+  if (type === 'Etc' && clubNumRaw) specParts.push(clubNumRaw);
+
+  // Wood/Hybrid: "3 Hybrid, 19.0 degrees" or "5 Woods, 18.5 degrees"
+  // Wedge: "SW, 56.0 degrees"
+  if (isWoodHybrid && clubNumRaw) {
+    const numDigit = clubNumRaw.replace(/[HW]/i, '').trim();
+    const loftStr  = degrees ? parseFloat(degrees).toFixed(1) + ' degrees' : '';
+    if (type === 'Hybrid') {
+      specParts.push(`${numDigit} Hybrid${loftStr ? ', ' + loftStr : ''}`);
+    } else {
+      specParts.push(`${numDigit} Woods${loftStr ? ', ' + loftStr : ''}`);
+    }
+  } else if (type === 'Wedge' && clubNumRaw) {
+    const loftStr = degrees ? parseFloat(degrees).toFixed(1) + ' degrees' : '';
+    specParts.push(`${clubNumRaw}${loftStr ? ', ' + loftStr : ''}`);
+  } else if (degrees) {
+    specParts.push(parseFloat(degrees).toFixed(1) + ' degrees');
+  }
+
+  specParts.push(`${gender}'s ${handed.toLowerCase()}-handed`);
+
+  // Grip size — append if Midsize or Jumbo
+  const grip = getToggleVal('tg-grip');
+  if (grip === 'Midsize') specParts.push('Midsize grips');
+  else if (grip === 'Jumbo')  specParts.push('Jumbo grips');
+
+  // Condition / Notes — append to TITLE and SPEC
+  const conditionMap = {
+    '(New)':      { spec: '** Brand New' },
+    '(Like new)': { spec: '** Like new' },
+    '(Scratches)':{ spec: '** Minor scratches, but no impact on performance' },
+    '(Dent)':     { spec: '** Minor dent on the head' }
+  };
+  const condVal = document.getElementById('f-condition').value;
+  const lengthVal = parseFloat(document.getElementById('f-condition-length').value) || '';
+
+  let condLabel = null;  // text appended to TITLE
+  let condSpec  = null;  // text appended to SPEC
+
+  if (condVal === '(-custom)' && lengthVal !== '') {
+    condLabel = `(-${lengthVal}")`;
+    condSpec  = `** Length: ${lengthVal}" Shorter`;
+  } else if (condVal === '(+custom)' && lengthVal !== '') {
+    condLabel = `(+${lengthVal}")`;
+    condSpec  = `** Length: ${lengthVal}" Longer`;
+  } else if (conditionMap[condVal]) {
+    condLabel = condVal;
+    condSpec  = conditionMap[condVal].spec;
+  }
+  // *CHECK → TITLE 끝에만 추가, SPEC에는 반영 안 됨
+  if (condVal === '*CHECK') condLabel = '*CHECK';
+
+  if (condSpec) specParts.push(condSpec);
+
+  document.getElementById('f-spec').value = specParts.join(', ');
+
+  // Condition suffix in TITLE — ' * ' 구분자 사용 (condition은 슬래시 대신 별표)
+  const titleEl = document.getElementById('f-title');
+  if (condLabel && !titleEl.value.includes(condLabel)) {
+    titleEl.value = titleEl.value + ' * ' + condLabel;
+  }
+}
+
+// Show/hide length input when Shorter/Longer is selected
+document.getElementById('f-condition').addEventListener('change', function() {
+  const wrap = document.getElementById('length-input-wrap');
+  const inp  = document.getElementById('f-condition-length');
+  if (this.value === '(-custom)' || this.value === '(+custom)') {
+    wrap.style.display = 'block';
+    inp.focus();
+  } else {
+    wrap.style.display = 'none';
+    inp.value = '';
+  }
+});
+
+// debounce 유틸: 연속 입력 시 마지막 호출만 실행 (150ms)
+function debounce(fn, delay) {
+  let timer;
+  return function(...args) { clearTimeout(timer); timer = setTimeout(() => fn.apply(this, args), delay); };
+}
+const debouncedRegenerate = debounce(regenerateFields, 150);
+
+// Auto-regenerate when condition length value changes
+document.getElementById('f-condition-length').addEventListener('input', debouncedRegenerate);
+
+// Putter length: show custom input when *.*" selected
+document.getElementById('f-putter-length').addEventListener('change', function() {
+  const wrap = document.getElementById('putter-length-custom-wrap');
+  const inp  = document.getElementById('f-putter-length-custom');
+  if (this.value === 'custom') {
+    wrap.style.display = 'block';
+    inp.focus();
+  } else {
+    wrap.style.display = 'none';
+    inp.value = '';
+  }
+  regenerateFields();
+});
+document.getElementById('f-putter-length-custom').addEventListener('input', debouncedRegenerate);
+
+// Auto-regenerate on field change (input 이벤트는 debounce, change는 즉시 반응)
+// f-type, f-putter-length는 아래에서 개별 리스너로 처리하므로 제외 (이중 호출 방지)
+const SKIP_REGEN_IDS = new Set(['f-type', 'f-putter-length']);
+document.querySelectorAll('#screen-edit .form-input').forEach(el => {
+  el.addEventListener('input', debouncedRegenerate);
+  if (!SKIP_REGEN_IDS.has(el.id)) {
+    el.addEventListener('change', regenerateFields);
+  }
+});
+
+// Type selector: update club number selector & auto-set flex default
+document.getElementById('f-type').addEventListener('change', function() {
+  updateClubNumberSelector();
+  const t = this.value;
+  // Iron Set → show pcs breakdown field
+  document.getElementById('iron-pcs-group').style.display = (t === 'Iron Set') ? '' : 'none';
+  // Putter → show length group, set default 34"
+  const pg = document.getElementById('putter-length-group');
+  if (t === 'Putter') {
+    pg.style.display = '';
+    if (!document.getElementById('f-putter-length').value) {
+      document.getElementById('f-putter-length').value = '34"';
+    }
+  } else {
+    pg.style.display = 'none';
+  }
+  // Wedge / Putter → default flex to '-'
+  if (t === 'Wedge' || t === 'Putter') {
+    document.getElementById('f-flex').value = '-';
+  } else if (document.getElementById('f-flex').value === '-') {
+    document.getElementById('f-flex').value = 'R';
+  }
+  regenerateFields();
+});
+
+// Gender change: refresh loft table options for Wood/Hybrid
+document.querySelectorAll('#tg-gender .toggle-option').forEach(btn => {
+  btn.addEventListener('click', () => {
+    setTimeout(() => { updateClubNumberSelector(); regenerateFields(); }, 50);
+  });
+});
+
+/* ================================================================
+   CODE GENERATION
+   ================================================================ */
+function generateCode() {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const prefix = yy + mm;
+  const pfx = parseInt(prefix) * 10000;
+  // STATE.entries 전체 참조해 최대 순번 산출
+  let maxSeq = 2000;
+  const allNos = new Set(STATE.entries.map(e => e.no));
+  allNos.forEach(no => {
+    if (no >= pfx + 2001 && no < pfx + 10000) {
+      const seq = no - pfx;
+      if (seq > maxSeq) maxSeq = seq;
+    }
+  });
+  const candidate = pfx + maxSeq + 1;
+  // 혹시 충돌 시 1씩 증가하여 유일한 번호 확보
+  let code = candidate;
+  while (allNos.has(code)) code++;
+  return code;
+}
+
+/* ================================================================
+   SAVE ONLY (화면 유지 — 동일 정보에서 일부만 바꿔 재저장)
+   ================================================================ */
+function saveOnly() {
+  const brand = document.getElementById('f-brand').value.trim();
+  if (!brand) { toast('Please enter brand', true); return; }
+
+  const gender = getToggleVal('tg-gender');
+  const handed = getToggleVal('tg-handed');
+  const grip   = getToggleVal('tg-grip');
+
+  STATE.gender = gender;
+  STATE.handed = handed;
+  STATE.grip   = grip;
+
+  const entry = {
+    no:     generateCode(),
+    type:   document.getElementById('f-type').value,
+    brand:  brand,
+    model:  document.getElementById('f-model').value.trim(),
+    title:  document.getElementById('f-title').value,
+    spec:   document.getElementById('f-spec').value,
+    price:  parseInt(document.getElementById('f-price').value)  || 0,
+    cost:   parseInt(document.getElementById('f-cost').value)   || 0,
+    gender: gender,
+    handed: handed,
+    grip:   grip,
+    timestamp: new Date().toISOString()
+  };
+
+  STATE.entries.push(entry);
+  saveToStorage();
+
+  toast('Saved! Edit and save again if needed.');
+  // 화면 이동 없이 현재 details 폼 유지
+}
+
+/* ================================================================
+   SAVE ENTRY
+   ================================================================ */
+function saveEntry() {
+  const brand = document.getElementById('f-brand').value.trim();
+  if (!brand) { toast('Please enter brand', true); return; }
+
+  const gender = getToggleVal('tg-gender');
+  const handed = getToggleVal('tg-handed');
+  const grip = getToggleVal('tg-grip');
+
+  STATE.gender = gender;
+  STATE.handed = handed;
+  STATE.grip = grip;
+
+  const entry = {
+    no: generateCode(),
+    type: document.getElementById('f-type').value,
+    brand: brand,
+    model: document.getElementById('f-model').value.trim(),
+    title: document.getElementById('f-title').value,
+    spec: document.getElementById('f-spec').value,
+    price: parseInt(document.getElementById('f-price').value) || 0,
+    cost: parseInt(document.getElementById('f-cost').value) || 0,
+    gender: gender,
+    handed: handed,
+    grip: grip,
+    timestamp: new Date().toISOString()
+  };
+
+  STATE.entries.push(entry);
+  saveToStorage();
+
+  toast('Saved! Ready for next club.');
+  resetCapture();
+  showScreen('capture');
+}
+
+function saveToStorage() {
+  try {
+    localStorage.setItem('golf_entries', JSON.stringify(STATE.entries));
+  } catch(e) {
+    console.error('saveToStorage 실패:', e);
+    toast('저장 실패: 저장 공간이 부족합니다. 오래된 항목을 삭제해 주세요.', true);
+  }
+}
+
+/* ================================================================
+   RENDER LIST
+   ================================================================ */
+function renderList() {
+  const entries = STATE.entries;
+  const tbody = document.getElementById('list-tbody');
+  const empty = document.getElementById('list-empty');
+  const tableWrap = document.getElementById('list-table-wrap');
+
+  document.getElementById('list-subtitle').textContent = `${entries.length} items registered`;
+  document.getElementById('stat-total').textContent = entries.length;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const todayCount = entries.filter(e => e.timestamp && e.timestamp.slice(0, 10) === today).length;
+  document.getElementById('stat-today').textContent = todayCount;
+
+  const totalValue = entries.reduce((s, e) => s + (e.price || 0), 0);
+  document.getElementById('stat-value').textContent = '$' + totalValue.toLocaleString();
+
+  if (entries.length === 0) {
+    empty.style.display = '';
+    tableWrap.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  tableWrap.style.display = '';
+
+  tbody.innerHTML = entries.map((e, i) => `
+    <tr>
+      <td>${e.no}</td>
+      <td>${e.type}</td>
+      <td style="font-size:12px;line-height:1.4">${escHtml(e.title)}<br><span style="color:var(--text-light)">${escHtml(e.brand)} &middot; $${e.price}</span></td>
+      <td>$${e.price}</td>
+      <td class="actions">
+        <button class="icon-btn edit" onclick="openEditModal(${i})"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="icon-btn del" onclick="deleteEntry(${i})"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* ================================================================
+   EDIT MODAL (list screen)
+   ================================================================ */
+function openEditModal(idx) {
+  STATE.editIndex = idx;
+  const e = STATE.entries[idx];
+  const body = document.getElementById('edit-modal-body');
+  const fields = [
+    { key:'type', label:'Category', type:'select', opts:['Driver','Wood','Hybrid','Iron Set','Wedge','Putter','Full Set','Etc'] },
+    { key:'brand', label:'Brand' },
+    { key:'model', label:'Model' },
+    { key:'title', label:'Title' },
+    { key:'spec', label:'Spec', type:'textarea' },
+    { key:'price', label:'Price ($)', type:'number' },
+    { key:'cost', label:'Cost ($)', type:'number' },
+    { key:'gender', label:'Gender', type:'select', opts:['Men','Women'] },
+    { key:'handed', label:'Handed', type:'select', opts:['Right','Left'] },
+    { key:'grip', label:'Grip', type:'select', opts:['Standard','Midsize','Jumbo'] }
+  ];
+
+  body.innerHTML = fields.map(f => {
+    if (f.type === 'select') {
+      return `<div class="form-group"><label class="form-label">${f.label}</label>
+        <select class="form-input" id="em-${f.key}">${f.opts.map(o => `<option value="${o}" ${e[f.key]===o?'selected':''}>${o}</option>`).join('')}</select></div>`;
+    }
+    if (f.type === 'textarea') {
+      return `<div class="form-group"><label class="form-label">${f.label}</label>
+        <textarea class="form-input" id="em-${f.key}">${escHtml(e[f.key]||'')}</textarea></div>`;
+    }
+    return `<div class="form-group"><label class="form-label">${f.label}</label>
+      <input class="form-input" id="em-${f.key}" type="${f.type||'text'}" value="${escHtml(String(e[f.key]||''))}"></div>`;
+  }).join('');
+
+  document.getElementById('edit-modal').classList.add('show');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.remove('show');
+}
+
+function saveEditModal() {
+  const e = STATE.entries[STATE.editIndex];
+  ['type','brand','model','title','spec','price','cost','gender','handed','grip'].forEach(key => {
+    const el = document.getElementById('em-' + key);
+    if (el) {
+      e[key] = (key === 'price' || key === 'cost') ? (parseInt(el.value) || 0) : el.value;
+    }
+  });
+  saveToStorage();
+  closeEditModal();
+  renderList();
+  toast('Entry updated!');
+}
+
+/* ================================================================
+   DELETE / CLEAR
+   ================================================================ */
+function deleteEntry(idx) {
+  if (confirm('Delete this entry?')) {
+    STATE.entries.splice(idx, 1);
+    saveToStorage();
+    renderList();
+    toast('Entry deleted');
+  }
+}
+
+function clearAll() {
+  if (confirm('Delete all entries? This cannot be undone.')) {
+    STATE.entries = [];
+    saveToStorage();
+    renderList();
+    toast('All entries cleared');
+  }
+}
+
+/* ================================================================
+   EXPORT CSV
+   ================================================================ */
+/* CSV 셀 값을 안전하게 이스케이프: 따옴표 처리 + 수식 인젝션 방어 */
+function csvCell(val) {
+  const s = String(val ?? '');
+  // Excel 수식 인젝션 방어: =, +, -, @, 탭, 개행으로 시작하면 앞에 작은따옴표 추가
+  const safe = /^[=+\-@\t\r\n]/.test(s) ? "'" + s : s;
+  // 따옴표가 포함되면 전체를 큰따옴표로 감싸고 내부 큰따옴표는 이중 처리
+  return safe.includes('"') || safe.includes(',') || safe.includes('\n')
+    ? `"${safe.replace(/"/g, '""')}"` : safe;
+}
+function exportCSV() {
+  if (STATE.entries.length === 0) { toast('No data to export', true); return; }
+  const headers = ['NO','Full Set','TITLE','SPEC','PRICE','COST'];
+  const rows = STATE.entries.map(e => [
+    csvCell(e.no),
+    csvCell(e.type),
+    csvCell(e.title),
+    csvCell(e.spec),
+    csvCell(e.price),
+    csvCell(e.cost)
+  ]);
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  a.download = `golf_clubs_${dateStr}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV exported!');
+}
+
+/* ================================================================
+   PWA
+   ================================================================ */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
