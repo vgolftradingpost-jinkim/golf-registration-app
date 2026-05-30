@@ -1,18 +1,21 @@
-// 앱 코드나 DB 변경 시 버전 번호를 올려주세요 (캐시 자동 갱신)
-const CACHE_VERSION = 'v6';
+// 앱 코드 변경 시 버전 번호를 올려주세요 (캐시 자동 갱신)
+const CACHE_VERSION = '20260530';
 const CACHE_NAME = `golf-reg-${CACHE_VERSION}`;
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './golf_db.json',   // DB 오프라인 지원 (1.9MB — 최초 설치 시 캐시)
-  './brands.json'
+  './icon-192.png',
+  './icon-512.png',
+  './rules.js',
+  './ai.js',
+  './export.js'
 ];
 
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME).then(c =>
-      // golf_db.json은 크므로 개별 실패 시 전체 설치 실패 방지
+      // 일부 자원 실패해도 전체 설치는 진행
       Promise.allSettled(ASSETS.map(url => c.add(url)))
     )
   );
@@ -29,12 +32,16 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // API 호출은 캐시 우회 (항상 네트워크 직접 요청)
-  if (e.request.url.includes('api.anthropic.com')) return;
+  // 동적 데이터(API/프록시/스토어)는 캐시 우회 — 항상 네트워크
+  const url = e.request.url;
+  if (url.includes('api.anthropic.com') ||
+      url.includes('corsproxy.io') ||
+      url.includes('golftradingpost.ca')) return;
+
   e.respondWith(
     fetch(e.request)
       .then(res => {
-        // 네트워크 성공 시 캐시 갱신 (golf_db.json 등 정적 자산)
+        // 네트워크 성공 시 캐시 갱신 (정적 자산만)
         if (res.ok && e.request.method === 'GET') {
           const clone = res.clone();
           caches.open(CACHE_NAME).then(c => c.put(e.request, clone));

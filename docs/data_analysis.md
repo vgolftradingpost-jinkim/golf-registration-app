@@ -1,7 +1,8 @@
 # Golf Inventory Data Analysis
-**파일**: `data/golf_inventory.xlsx`
-**분석일**: 2026-03-29
-**목적**: 실제 골프 클럽 이미지 판독 데이터를 동일한 형식으로 매핑하기 위한 구조 파악
+**원본 분석 파일**: `data/golf_inventory.xlsx` *(v9에서 저장소에서 제거됨 — 본 문서는 참고 기준치로만 유지)*
+**최초 분석일**: 2026-03-29
+**최종 동기화**: 2026-05-30 *(Flex 표 §7-3을 코드 `flexMap`과 일치화)*
+**목적**: 이미지 판독 데이터를 일관된 형식으로 매핑하기 위한 정규화 기준
 
 ---
 
@@ -286,27 +287,35 @@ Pick up only, Strata 10 pcs Complete Set for Starter(No bag), Driver, 3wood, 4,5
 
 ### 7-3. Flex 표기 정규화
 
-PRODUCT NAME과 SPECIFICATION에서 Flex 표기를 아래와 같이 통일한다.
+PRODUCT NAME(TITLE)과 SPECIFICATION에서 Flex 표기를 아래와 같이 통일한다.
+*(코드 단일 소스: `app/rules.js` 의 `RULES.flexMap` — v12 이후 모듈 분리, 2026-05-30 동기화)*
 
-| Flex 값 | PRODUCT NAME 표기 | SPECIFICATION 표기 |
-|---------|------------------|-------------------|
-| Regular | `R` | `Regular` |
-| Stiff | `S` | `Stiff` |
-| Extra Stiff | `X` | `Extra Stiff` |
-| Ladies | `L` | `Ladies` |
-| Senior / A-flex | `A` | `Senior` |
-| Regular-Stiff | `R(S)` | `Regular-Stiff` |
+> 본 표를 수정할 경우 `app/rules.js`의 `RULES.flexMap`도 함께 수정해야 한다 (양쪽 일치 필수).
 
-**변환 예시**:
+| Flex 값 | TITLE 표기 | SPECIFICATION 표기 |
+|---------|------------|-------------------|
+| (해당 없음) | (생략) | (생략) |
+| Regular | `R` | `Regular-flex` |
+| Stiff | `S` | `Stiff-flex` |
+| Stiff/Regular | `R(S)` | `Stiff/Regular-flex` |
+| eXtra Stiff | `X` | `eXtra stiff-flex` |
+| Ladies | `L` *(Women 동반 시 생략)* | `Ladies-flex` |
+| Senior | `A` | `A(Senior)-flex` |
+| Uniflex | `Uni` | `Uniflex` |
+| Wedge | (생략) | `Wedge-flex` |
 
-| 원본 | → PRODUCT NAME | → SPECIFICATION |
-|------|---------------|----------------|
-| `R-flex`, `Regular`, `(R)`, `Reg` | `R` | `Regular` |
-| `S-flex`, `Stiff`, `(S)` | `S` | `Stiff` |
-| `SR`, `R/S`, `RS` | `R(S)` | `Regular-Stiff` |
-| `L-flex`, `Ladies`, `Women` | `L` | `Ladies` |
-| `A-flex`, `A(Senior)`, `Senior` | `A` | `Senior` |
-| `X-flex`, `XS`, `Extra Stiff` | `X` | `Extra Stiff` |
+**AI/원본 입력 정규화 매핑**:
+
+| 원본 | → TITLE | → SPECIFICATION |
+|------|---------|----------------|
+| `R-flex`, `Regular`, `(R)`, `Reg` | `R` | `Regular-flex` |
+| `S-flex`, `Stiff`, `(S)` | `S` | `Stiff-flex` |
+| `SR`, `R/S`, `RS` | `R(S)` | `Stiff/Regular-flex` |
+| `L-flex`, `Ladies` | `L` | `Ladies-flex` |
+| `A-flex`, `A(Senior)`, `Senior` | `A` | `A(Senior)-flex` |
+| `X-flex`, `XS`, `eXtra Stiff` | `X` | `eXtra stiff-flex` |
+| `Uniflex`, `Uni` | `Uni` | `Uniflex` |
+| `W-flex`, `Wedge flex` | (TITLE 생략) | `Wedge-flex` |
 
 ---
 
@@ -389,8 +398,8 @@ Gender:    Men's right-handed
 
 | CODE | TYPE | PRODUCT NAME | SPECIFICATION | PRICE |
 |------|------|-------------|---------------|-------|
-| 26042001 | Driver | TaylorMade Driver / SIM2 MAX / 10.5 / S | Fujikura Ventus Blue 60 Graphite shaft, 62g, Stiff, 10.5 degrees, Men's right-handed | (별도 책정) |
+| 26042001 | Driver | TaylorMade Driver / SIM2 MAX / 10.5 / S | Fujikura Ventus Blue 60 Graphite shaft, 62g, Stiff-flex, 10.5 degrees, Men's right-handed | (별도 책정) |
 
 ---
 
-*분석 작성: Claude (Cowork mode) | 최초 2026-03-29 | 매핑 지침 업데이트 2026-03-29*
+*분석 작성: Claude (Cowork mode) | 최초 2026-03-29 | Flex 표 코드 일치화 2026-05-30*

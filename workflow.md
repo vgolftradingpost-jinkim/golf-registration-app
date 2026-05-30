@@ -1,6 +1,6 @@
 # Golf Club Register App — Workflow & Code Review
 
-> 최초 작성: 2026-04-06 | 최종 업데이트: 2026-04-08 (v9)
+> 최초 작성: 2026-04-06 | 최종 업데이트: 2026-04-25 (v11)
 > 분석 대상: `app/index.html` (v9 기준, ~1,637줄 단일 파일 PWA)
 
 ---
@@ -8,7 +8,7 @@
 ## 1. 프로젝트 전체 구조
 
 ```
-03 golf-club-app/
+03 registration_app/
 ├── app/
 │   ├── index.html        ← 메인 앱 (CSS + JS + HTML 전부 포함, ~1,637줄)
 │   ├── manifest.json     ← PWA 설정 (standalone 모드, 아이콘 등)

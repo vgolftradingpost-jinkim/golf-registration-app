@@ -1,6 +1,6 @@
 @echo off
 title Golf Club App Server
-cd /d "C:\Users\redru\Desktop\01 Work_ai\03 golf-club-app"
+cd /d "C:\Users\redru\Desktop\01 Work_ai\03 registration_app"
 
 echo.
 echo  ================================================
