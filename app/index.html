@@ -168,17 +168,15 @@ input[type="file"].hidden-input{position:absolute;width:0;height:0;opacity:0;poi
 .mi-field{margin-bottom:14px}
 .mi-field.disabled{opacity:.45;pointer-events:none}
 .mi-label{font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px}
-.mi-input-row{display:flex;gap:8px}
-.mi-input-row .form-input{flex:1}
-.mi-mic{flex-shrink:0;width:48px;border:1.5px solid var(--border);border-radius:10px;background:var(--card);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
-.mi-mic.listening{background:#ffe3e3;border-color:#ff6b6b;animation:pulse 1s infinite}
-.mi-mic:disabled{opacity:.35;cursor:not-allowed}
-@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
-.mi-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.mi-chip{font-size:12px;padding:6px 11px;border:1.5px solid #c8e6c9;border-radius:16px;background:#fff;cursor:pointer;color:var(--text);transition:.12s}
-.mi-chip:active{transform:scale(.95)}
-.mi-chip.sel{background:var(--primary);color:#fff;border-color:var(--primary)}
-.mi-stage-label{font-size:11px;color:var(--text-light);margin:8px 0 2px;font-weight:600}
+.mi-dd-wrap{position:relative}
+.mi-dd-wrap .form-input{width:100%}
+.mi-dd{position:absolute;top:100%;left:0;right:0;z-index:50;margin-top:4px;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);max-height:260px;overflow-y:auto;display:none}
+.mi-dd.open{display:block}
+.mi-dd-head{font-size:11px;font-weight:700;color:var(--text-light);padding:8px 12px 4px;position:sticky;top:0;background:#fff}
+.mi-dd-item{padding:11px 12px;font-size:14px;cursor:pointer;border-top:1px solid #f0f0f0}
+.mi-dd-item:first-child{border-top:none}
+.mi-dd-item.active,.mi-dd-item:hover{background:#e8f5e9}
+.mi-dd-empty{padding:11px 12px;font-size:12px;color:var(--text-light)}
 .mi-hint{font-size:11px;color:var(--text-light);margin-top:5px}
 </style>
 </head>
@@ -238,41 +236,37 @@ input[type="file"].hidden-input{position:absolute;width:0;height:0;opacity:0;poi
   <!-- ===== 직접 입력 패널 (v13) — 기본 숨김 ===== -->
   <div id="manual-mode-wrap" style="display:none">
     <div class="card">
-      <div class="card-title">Quick Entry <span style="font-size:11px;font-weight:400;color:var(--text-light)">(자판 / 음성 ⌨️🎤)</span></div>
+      <div class="card-title">Quick Entry <span style="font-size:11px;font-weight:400;color:var(--text-light)">(입력 → 목록에서 선택 ⌨️)</span></div>
 
       <!-- BRAND -->
       <div class="mi-field" id="mi-field-brand">
         <div class="mi-label">Brand</div>
-        <div class="mi-input-row">
-          <input class="form-input" id="mi-brand" placeholder="e.g. TaylorMade" autocomplete="off"
-                 oninput="onManualBrandInput()" onchange="onManualBrandCommit()">
-          <button type="button" class="mi-mic" id="mi-mic-brand" onclick="voiceFill('brand')" title="음성 입력">🎤</button>
+        <div class="mi-dd-wrap">
+          <input class="form-input" id="mi-brand" placeholder="브랜드 입력/선택 (예: TaylorMade)" autocomplete="off"
+                 oninput="onManualBrandInput()" onfocus="openDD('brand')" onkeydown="ddKey(event,'brand')">
+          <div class="mi-dd" id="mi-dd-brand"></div>
         </div>
-        <div class="mi-chips" id="mi-chips-brand"></div>
       </div>
 
       <!-- MODEL -->
       <div class="mi-field disabled" id="mi-field-model">
         <div class="mi-label">Model</div>
-        <div class="mi-input-row">
-          <input class="form-input" id="mi-model" placeholder="e.g. SIM2 MAX" autocomplete="off"
-                 oninput="onManualModelInput()" onchange="onManualModelCommit()">
-          <button type="button" class="mi-mic" id="mi-mic-model" onclick="voiceFill('model')" title="음성 입력">🎤</button>
+        <div class="mi-dd-wrap">
+          <input class="form-input" id="mi-model" placeholder="모델 입력/선택 (예: SIM2 MAX)" autocomplete="off"
+                 oninput="onManualModelInput()" onfocus="openDD('model')" onkeydown="ddKey(event,'model')">
+          <div class="mi-dd" id="mi-dd-model"></div>
         </div>
-        <div class="mi-chips" id="mi-chips-model"></div>
       </div>
 
       <!-- SHAFT -->
       <div class="mi-field disabled" id="mi-field-shaft">
         <div class="mi-label">Shaft</div>
-        <div class="mi-input-row">
-          <input class="form-input" id="mi-shaft" placeholder="e.g. TENSEI RED TM50" autocomplete="off"
-                 oninput="onManualShaftInput()">
-          <button type="button" class="mi-mic" id="mi-mic-shaft" onclick="voiceFill('shaft')" title="음성 입력">🎤</button>
+        <div class="mi-dd-wrap">
+          <input class="form-input" id="mi-shaft" placeholder="샤프트 입력/선택 (예: TENSEI RED TM50)" autocomplete="off"
+                 oninput="onManualShaftInput()" onfocus="openDD('shaft')" onkeydown="ddKey(event,'shaft')">
+          <div class="mi-dd" id="mi-dd-shaft"></div>
         </div>
-        <div class="mi-stage-label" id="mi-shaft-stage"></div>
-        <div class="mi-chips" id="mi-chips-shaft"></div>
-        <div class="mi-hint">추천에 없으면 직접 입력/음성으로 그대로 등록됩니다.</div>
+        <div class="mi-hint">추천에 없으면 입력값 그대로 등록됩니다.</div>
       </div>
 
       <button class="btn btn-primary" id="mi-continue" disabled onclick="manualContinue()">
@@ -890,10 +884,11 @@ function onCaptureTypeChange() {
 }
 
 /* ================================================================
-   직접 입력 (Quick Entry) — 자판/음성 + 계층 자동완성 (v13)
-   match.js 의 엔진 함수 사용
+   직접 입력 (Quick Entry) — 검색형 드롭다운 (v14, 음성 제거)
+   match.js: getBrandCandidates/getModelCandidates/getShaftCandidates/filterCandidates
    ================================================================ */
 const MI = { type:'', brand:'', model:'', shaft:'' };
+let MI_DD = { field:null, items:[], active:-1 };  // 열린 드롭다운 상태
 
 function setInputMode(mode) {
   const isManual = (mode === 'manual');
@@ -902,13 +897,7 @@ function setInputMode(mode) {
   document.getElementById('photo-mode-wrap').style.display  = isManual ? 'none' : '';
   document.getElementById('manual-mode-wrap').style.display = isManual ? '' : 'none';
   if (isManual) {
-    // 음성 미지원 시 마이크 버튼 비활성 (자판 폴백)
-    if (typeof isSpeechSupported === 'function' && !isSpeechSupported()) {
-      ['brand','model','shaft'].forEach(f => {
-        const b = document.getElementById('mi-mic-' + f);
-        if (b) { b.disabled = true; b.title = '이 브라우저는 음성 미지원'; }
-      });
-    }
+    if (typeof loadMatchData === 'function') loadMatchData();  // 데이터 로드 보장
     resetManual();
   }
 }
@@ -916,7 +905,7 @@ function setInputMode(mode) {
 function miType() {
   // Quick Entry 는 데이터에 있는 TYPE 만 의미 있음. Full Set 등은 Driver 기준 폴백.
   const t = document.getElementById('capture-type').value;
-  return (MATCH.tree && MATCH.tree[t]) ? t : (t || 'Driver');
+  return (typeof MATCH !== 'undefined' && MATCH.tree && MATCH.tree[t]) ? t : (t || 'Driver');
 }
 
 function resetManual() {
@@ -925,89 +914,124 @@ function resetManual() {
   ['brand','model','shaft'].forEach(f => { document.getElementById('mi-' + f).value = ''; });
   document.getElementById('mi-field-model').classList.add('disabled');
   document.getElementById('mi-field-shaft').classList.add('disabled');
-  document.getElementById('mi-chips-model').innerHTML = '';
-  document.getElementById('mi-chips-shaft').innerHTML = '';
-  document.getElementById('mi-shaft-stage').textContent = '';
+  closeDD();
   document.getElementById('mi-continue').disabled = true;
-  renderBrandChips('');
 }
 
-function renderChips(containerId, items, onPick, selected) {
-  const el = document.getElementById(containerId);
-  el.innerHTML = items.map(v =>
-    `<button type="button" class="mi-chip${v===selected?' sel':''}" data-v="${escHtml(v)}">${escHtml(v)}</button>`
-  ).join('');
-  [...el.querySelectorAll('.mi-chip')].forEach(b =>
-    b.addEventListener('click', () => onPick(b.dataset.v)));
+/* ---- 후보 계산 (필드별) ---- */
+function ddCandidates(field, filter) {
+  if (field === 'brand') {
+    const cands = (typeof getBrandCandidates === 'function') ? getBrandCandidates(miType()) : [];
+    return { head: 'Brand 추천 (사용 빈도순)', list: filterCandidates(filter, cands, 30) };
+  }
+  if (field === 'model') {
+    const cands = getModelCandidates(miType(), MI.brand);
+    return { head: MI.brand + ' 모델 (빈도순)', list: filterCandidates(filter, cands, 30) };
+  }
+  // shaft — 3단계 폴백 + 라벨 유지
+  const res = getShaftCandidates(miType(), MI.brand, MI.model);
+  const list = filter ? filterCandidates(filter, res.list, 30) : res.list;
+  const head = res.list.length ? ('추천 샤프트 (' + res.label + ')') : '추천 없음 — 직접 입력하세요';
+  return { head, list };
 }
 
-/* ---- BRAND ---- */
-function renderBrandChips(filter) {
-  const cands = (typeof getBrandCandidates === 'function') ? getBrandCandidates(miType()) : [];
-  const shown = filterCandidates(filter, cands, 12);
-  renderChips('mi-chips-brand', shown, pickBrand, MI.brand);
+/* ---- 드롭다운 렌더 / 열기 / 닫기 ---- */
+function renderDD(field, filter) {
+  const dd = document.getElementById('mi-dd-' + field);
+  const r = ddCandidates(field, filter);
+  const list = r.list;
+  MI_DD = { field, items: list, active: -1 };
+  let html = '<div class="mi-dd-head">' + escHtml(r.head) + '</div>';
+  if (list.length) {
+    html += list.map((v, i) =>
+      '<div class="mi-dd-item" data-i="' + i + '" data-v="' + escHtml(v) + '">' + escHtml(v) + '</div>').join('');
+  } else if (filter) {
+    html += '<div class="mi-dd-empty">"' + escHtml(filter) + '" — 입력값 그대로 등록됩니다</div>';
+  }
+  dd.innerHTML = html;
+  dd.classList.add('open');
+  [...dd.querySelectorAll('.mi-dd-item')].forEach(el =>
+    el.addEventListener('mousedown', (e) => { e.preventDefault(); pick(field, el.dataset.v); }));
 }
+function openDD(field) {
+  if (document.getElementById('mi-field-' + field).classList.contains('disabled')) return;
+  renderDD(field, document.getElementById('mi-' + field).value);
+}
+function closeDD() {
+  ['brand','model','shaft'].forEach(f => {
+    const dd = document.getElementById('mi-dd-' + f);
+    if (dd) { dd.classList.remove('open'); dd.innerHTML = ''; }
+  });
+  MI_DD = { field:null, items:[], active:-1 };
+}
+
+/* ---- 키보드 네비게이션 (↑↓ Enter Esc) ---- */
+function ddKey(ev, field) {
+  const dd = document.getElementById('mi-dd-' + field);
+  if (!dd.classList.contains('open')) { if (ev.key === 'ArrowDown') openDD(field); return; }
+  const items = [...dd.querySelectorAll('.mi-dd-item')];
+  if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+    ev.preventDefault();
+    if (!items.length) return;
+    MI_DD.active += (ev.key === 'ArrowDown' ? 1 : -1);
+    if (MI_DD.active < 0) MI_DD.active = items.length - 1;
+    if (MI_DD.active >= items.length) MI_DD.active = 0;
+    items.forEach((el, i) => el.classList.toggle('active', i === MI_DD.active));
+    items[MI_DD.active].scrollIntoView({ block: 'nearest' });
+  } else if (ev.key === 'Enter') {
+    ev.preventDefault();
+    if (MI_DD.active >= 0 && items[MI_DD.active]) pick(field, items[MI_DD.active].dataset.v);
+    else closeDD();
+  } else if (ev.key === 'Escape') {
+    closeDD();
+  }
+}
+
+/* ---- 입력 이벤트 ---- */
 function onManualBrandInput() {
-  renderBrandChips(document.getElementById('mi-brand').value);
-}
-function onManualBrandCommit() { pickBrand(document.getElementById('mi-brand').value, true); }
-function pickBrand(val, fromInput) {
-  MI.brand = (val || '').trim();
-  document.getElementById('mi-brand').value = MI.brand;
-  if (!fromInput) renderBrandChips('');
-  // 모델 활성화 / 초기화
-  MI.model = ''; MI.shaft = '';
-  document.getElementById('mi-model').value = '';
-  document.getElementById('mi-shaft').value = '';
-  document.getElementById('mi-field-shaft').classList.add('disabled');
-  document.getElementById('mi-chips-shaft').innerHTML = '';
-  document.getElementById('mi-shaft-stage').textContent = '';
-  const ok = !!MI.brand;
-  document.getElementById('mi-field-model').classList.toggle('disabled', !ok);
-  if (ok) renderModelChips('');
+  MI.brand = document.getElementById('mi-brand').value.trim();
+  renderDD('brand', MI.brand);
+  syncStages();
   updateMiContinue();
-}
-
-/* ---- MODEL ---- */
-function renderModelChips(filter) {
-  const cands = getModelCandidates(miType(), MI.brand);
-  const shown = filterCandidates(filter, cands, 12);
-  renderChips('mi-chips-model', shown, pickModel, MI.model);
 }
 function onManualModelInput() {
-  renderModelChips(document.getElementById('mi-model').value);
-}
-function onManualModelCommit() { pickModel(document.getElementById('mi-model').value, true); }
-function pickModel(val, fromInput) {
-  MI.model = (val || '').trim();
-  document.getElementById('mi-model').value = MI.model;
-  if (!fromInput) renderModelChips('');
-  MI.shaft = '';
-  document.getElementById('mi-shaft').value = '';
-  const ok = !!MI.model;
-  document.getElementById('mi-field-shaft').classList.toggle('disabled', !ok);
-  if (ok) renderShaftChips('');
+  MI.model = document.getElementById('mi-model').value.trim();
+  renderDD('model', MI.model);
+  syncStages();
   updateMiContinue();
-}
-
-/* ---- SHAFT (3단계 폴백) ---- */
-function renderShaftChips(filter) {
-  const res = getShaftCandidates(miType(), MI.brand, MI.model);
-  document.getElementById('mi-shaft-stage').textContent =
-    res.list.length ? `추천 (${res.label})` : '추천 없음 — 직접 입력하세요';
-  const shown = filter ? filterCandidates(filter, res.list, 8) : res.list;
-  renderChips('mi-chips-shaft', shown, pickShaft, MI.shaft);
 }
 function onManualShaftInput() {
   MI.shaft = document.getElementById('mi-shaft').value.trim();
-  renderShaftChips(MI.shaft);
+  renderDD('shaft', MI.shaft);
   updateMiContinue();
 }
-function pickShaft(val) {
-  MI.shaft = (val || '').trim();
-  document.getElementById('mi-shaft').value = MI.shaft;
-  renderShaftChips('');
+
+/* ---- 선택 확정 ---- */
+function pick(field, val) {
+  const v = (val || '').trim();
+  if (field === 'brand') {
+    MI.brand = v; document.getElementById('mi-brand').value = v;
+    MI.model = ''; MI.shaft = '';
+    document.getElementById('mi-model').value = '';
+    document.getElementById('mi-shaft').value = '';
+  } else if (field === 'model') {
+    MI.model = v; document.getElementById('mi-model').value = v;
+    MI.shaft = '';
+    document.getElementById('mi-shaft').value = '';
+  } else {
+    MI.shaft = v; document.getElementById('mi-shaft').value = v;
+  }
+  closeDD();
+  syncStages();
   updateMiContinue();
+}
+
+/* 활성/비활성 단계 동기화 (brand→model→shaft) */
+function syncStages() {
+  const brandOk = !!MI.brand;
+  const modelOk = !!MI.model;
+  document.getElementById('mi-field-model').classList.toggle('disabled', !brandOk);
+  document.getElementById('mi-field-shaft').classList.toggle('disabled', !(brandOk && modelOk));
 }
 
 function updateMiContinue() {
@@ -1015,38 +1039,10 @@ function updateMiContinue() {
   document.getElementById('mi-continue').disabled = !(MI.brand && MI.model);
 }
 
-/* ---- 음성 입력 (영어 고정) ---- */
-function voiceFill(field) {
-  if (typeof startVoiceInput !== 'function') return;
-  const btn = document.getElementById('mi-mic-' + field);
-  const input = document.getElementById('mi-' + field);
-  btn.classList.add('listening');
-  startVoiceInput(
-    (txt) => {
-      btn.classList.remove('listening');
-      // 인식 텍스트를 해당 필드 후보와 퍼지 매칭하여 보정
-      let cands = [];
-      if (field === 'brand') cands = getBrandCandidates(miType());
-      else if (field === 'model') cands = getModelCandidates(miType(), MI.brand);
-      else cands = getShaftCandidates(miType(), MI.brand, MI.model).list;
-      const matches = fuzzyMatch(txt, cands, 1);
-      const best = (matches[0] && matches[0].score >= 0.8) ? matches[0].value : txt;
-      input.value = best;
-      if (field === 'brand') pickBrand(best, true), renderBrandChips(best);
-      else if (field === 'model') pickModel(best, true), renderModelChips(best);
-      else { MI.shaft = best; renderShaftChips(best); updateMiContinue(); }
-      toast(`🎤 "${txt}" → ${best}`);
-    },
-    (reason) => {
-      btn.classList.remove('listening');
-      const msg = reason === 'no-permission' ? '마이크 권한이 필요합니다' :
-                  reason === 'unsupported'   ? '음성 미지원 브라우저' :
-                  reason === 'no-speech'     ? '음성이 감지되지 않았습니다' :
-                  '음성 인식 실패';
-      toast(msg, true);
-    }
-  );
-}
+/* 드롭다운 밖 클릭 시 닫기 */
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.mi-dd-wrap')) closeDD();
+});
 
 /* ---- Edit 화면으로 ---- */
 function manualContinue() {

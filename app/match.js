@@ -1,13 +1,12 @@
 /* ================================================================
-   match.js — 자판/음성 직접 입력용 자동완성 엔진
+   match.js — 자판 직접 입력용 자동완성 엔진 (검색형 드롭다운)
    ----------------------------------------------------------------
    · 계층 자동완성 (TYPE > BRAND > MODEL)        — match_tree.json
    · SHAFT 3단계 폴백 (BRAND+MODEL > BRAND > TYPE) — shaft_index.json
-   · 퍼지 매칭 (오타/음성 오인식 보정)
-   · Web Speech (영어 고정 en-US)
+   · 퍼지 매칭 (오타 보정, 후보 0건일 때 폴백 필터)
    · 방법 A: STATE.entries(직접 등록 항목) 런타임 병합 — 자동 학습
    계획서: docs/improve-plan_manual-input_20260604.md
-   v13 (2026-06-04)
+   v14 (2026-06-04) — 음성(Web Speech) 제거, 칩→드롭다운 전환
    ================================================================ */
 
 const MATCH = {
@@ -169,8 +168,10 @@ function fuzzyMatch(input, candidates, limit = 6) {
   return scored.slice(0, limit);
 }
 
-/* 입력 텍스트로 후보 실시간 필터 (자판 입력용) */
-function filterCandidates(input, candidates, limit = 8) {
+/* 입력 텍스트로 후보 실시간 필터 (자판 입력용)
+   - 한 글자만 입력해도 부분일치(startsWith → includes) 즉시 노출
+   - 일치 0건일 때만 퍼지(편집거리) 폴백 */
+function filterCandidates(input, candidates, limit = 30) {
   const q = fzNorm(input);
   if (!q) return candidates.slice(0, limit);
   const starts = [], includes = [];
@@ -184,33 +185,5 @@ function filterCandidates(input, candidates, limit = 8) {
   return out;
 }
 
-/* ================================================================
-   Web Speech — 음성 입력 (영어 고정 en-US)
-   ================================================================ */
-function isSpeechSupported() {
-  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-}
-
-/* startVoiceInput(onResult, onError)
-   onResult(transcript) — 인식된 텍스트(원본)
-   onError(reason)      — 'unsupported' | 'no-permission' | 'no-speech' | err */
-function startVoiceInput(onResult, onError) {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { onError && onError('unsupported'); return null; }
-  const rec = new SR();
-  rec.lang = 'en-US';          // 확정 사항 #2 — 영어 고정
-  rec.interimResults = false;
-  rec.maxAlternatives = 3;
-  rec.continuous = false;
-
-  rec.onresult = (ev) => {
-    const txt = ev.results[0][0].transcript.trim();
-    onResult && onResult(txt, ev.results[0]);
-  };
-  rec.onerror = (ev) => {
-    const map = { 'not-allowed': 'no-permission', 'service-not-allowed': 'no-permission', 'no-speech': 'no-speech' };
-    onError && onError(map[ev.error] || ev.error);
-  };
-  try { rec.start(); } catch (e) { onError && onError(e.message || 'start-failed'); }
-  return rec;
-}
+/* (v14) Web Speech 음성 입력 제거 — 모델/샤프트 영어 음성 인식 정확도 부족.
+   자판 + 검색형 드롭다운으로 일원화. */

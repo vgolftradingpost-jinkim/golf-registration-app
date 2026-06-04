@@ -66,7 +66,9 @@ Hybrid Women: 2H=19.5, 3H=21.5, 4H=24.0, 5H=26.5, 6H=29.5, 7H=32.0
 
 ---
 
-## 현재 상태 (v13, 2026-06-04) — 자판/음성 직접 입력 추가 (아래 v13 변경 참조)
+## 현재 상태 (v14, 2026-06-04) — 직접 입력 UI 개편: 검색형 드롭다운 + 음성 제거 (아래 v14 변경 참조)
+
+## 이전 상태 (v13, 2026-06-04) — 자판/음성 직접 입력 추가 (아래 v13 변경 참조)
 
 ## 이전 상태 (v12, 2026-05-30)
 - 폴더명 변경: `03 golf-club-app` → `03 registration_app` (v11)
@@ -140,8 +142,26 @@ build_match_tree.py   ← (신규) 엑셀→JSON 변환
 data/00 matching data.xlsx ← (신규) 매칭 원본 7,120건
 ```
 
+### v14 변경 (2026-06-04, 직접 입력 UI 개편)
+
+1차 모바일 테스트 피드백 반영: 칩이 위쪽에 떠 안 보이고, 자판은 거의 완전히 쳐야 뜨고, 음성(en-US)이 모델명을 정확히 못 잡아 실효성 없음.
+
+- **칩 → 검색형 드롭다운**: BRAND/MODEL/SHAFT 입력칸 바로 아래 `position:absolute` 드롭다운(`.mi-dd`). 다른 요소를 밀지 않음. 포커스 시 전체 후보, 한 글자만 쳐도 실시간 필터(부분일치→없으면 퍼지). ↑↓/Enter/Esc 키보드 네비, 바깥 클릭 시 닫힘.
+- **음성 완전 제거**: `match.js`의 `startVoiceInput`/`isSpeechSupported` 삭제, index.html의 `voiceFill`·🎤 버튼·`.mi-mic` 제거.
+- **SHAFT 폴백 라벨 유지**: 드롭다운 상단에 `추천 샤프트 (이 모델 기준/이 브랜드 기준/타입 전체)` 출처 표시.
+- **함수 재구성**: 신규 `ddCandidates/renderDD/openDD/closeDD/ddKey/pick/syncStages`. `pick()`이 brand→model→shaft 단계 활성화 담당. `setInputMode/miType/resetManual` 유지.
+- **검증**: Node(vm)로 실데이터 테스트 — "t/ta/tay" 단계 필터, "tailormade" 오타 보정, SHAFT 3단계 폴백, 음성함수 undefined 전부 통과.
+- **SW**: `CACHE_VERSION` `20260604` → `20260604b` (같은 날 재배포 강제 갱신).
+
+### 새 파일 구조 (v14)
+v13과 동일(파일 추가/삭제 없음). `match.js`/`index.html` 내용만 수정, `.mi-chip*` CSS 제거.
+
+### 작업 도구 주의 (2026-06-04 사고 기록)
+Cowork **Edit 도구로 index.html/match.js/sw.js/CLAUDE.md 수정 시 파일 끝 NUL(\x00) 덧붙음 + 대형 편집 시 뒷부분 절단** 손상 반복 발생(index.html 1794→1503줄, CLAUDE.md 147→115줄로 잘림). 대응: `git show HEAD:파일`로 복원 후 재적용. 권장: 마운트 폴더 대형 파일은 Edit 대신 **Python 문자열 치환 + `.replace(b'\x00',b'')`** 후 `node --check` 검증. v14는 이 방식으로 완료.
+
 ### 회귀 방지 메모
 - Code Review 본문: `docs/code_review_20260530.md`
 - Flex/브랜드/타입 규칙 변경 시 **반드시 `app/rules.js`와 `docs/data_analysis.md §7-3` 동시 수정**
 - **매칭 데이터 갱신 시**: `data/00 matching data.xlsx` 수정 → `py build_match_tree.py` 재실행 → JSON 2종 재생성 → push (sw.js CACHE_VERSION 자동 갱신). 자세한 운영(방법 A/B/C)은 계획서 §10-B.
 - **직접 입력 후보가 안 뜰 때**: ① JSON 로드 실패(콘솔 확인) ② `STATE.entries` 필드명(`type/brand/model/shaftModel`)이 match.js 추출자와 일치하는지 확인.
+- **드롭다운(v14)이 안 뜰 때**: ① `loadMatchData()` 완료 전이면 빈 목록 → `setInputMode('manual')`에서 로드 호출함 ② `mi-dd-*` 컨테이너 존재/`.open` 클래스 확인 ③ `MATCH.tree[TYPE]`에 해당 TYPE 키 존재 여부(`miType()` 폴백 Driver).
