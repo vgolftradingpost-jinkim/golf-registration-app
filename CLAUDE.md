@@ -66,7 +66,9 @@ Hybrid Women: 2H=19.5, 3H=21.5, 4H=24.0, 5H=26.5, 6H=29.5, 7H=32.0
 
 ---
 
-## 현재 상태 (v12, 2026-05-30)
+## 현재 상태 (v13, 2026-06-04) — 자판/음성 직접 입력 추가 (아래 v13 변경 참조)
+
+## 이전 상태 (v12, 2026-05-30)
 - 폴더명 변경: `03 golf-club-app` → `03 registration_app` (v11)
 - Screen 2 하단 버튼 2개로 분리 (v11):
   - `Save` — 저장 후 현재 화면 유지 (일부 항목만 바꿔 재저장 가능)
@@ -109,6 +111,37 @@ app/
 └── icon-*.png/svg
 ```
 
+### v13 변경 (2026-06-04, 자판/음성 직접 입력 + 계층 자동완성)
+
+계획서: `docs/improve-plan_manual-input_20260604.md` (9장 순서대로 구현)
+
+- **입력 방식 선택 추가**: Screen 1에 `📷 사진으로 분석` / `⌨️ 직접 입력` 2-버튼. 기존 사진/AI 경로는 **무수정 유지**(회귀 위험 0). 사진 영역은 `#photo-mode-wrap`, 직접입력은 `#manual-mode-wrap`으로 토글(`setInputMode`).
+- **직접 입력(Quick Entry)**: TYPE 선택 → BRAND → MODEL → SHAFT 계층 자동완성(빈도순 칩 + 자판 실시간 필터 + 🎤 음성). BRAND/MODEL 확정 시 `populateEditForm()` 재활용해 Edit로 이동, 나머지는 FORM_DEFAULTS/LOFT_TABLE 자동.
+- **SHAFT 3단계 폴백**: BRAND+MODEL(`이 모델 기준`) → BRAND(`이 브랜드 기준`) → TYPE 전체 상위 8개(`타입 전체`). 추천에 없으면 입력값 그대로 등록(강제 매칭 금지).
+- **음성**: 브라우저 내장 Web Speech `en-US` 고정. 미지원 시 마이크 버튼 자동 비활성(자판 폴백). 인식 텍스트는 퍼지 매칭(점수≥0.8)으로 보정.
+- **방법 A 자동 학습**: 자동완성 후보 = `match_tree.json`(기준 7,120건) + `STATE.entries`(직접 등록) 런타임 병합. 한 번 등록한 모델/샤프트는 다음부터 후보로 노출. → `buildEntry()`에 `shaftBrand`/`shaftModel` 필드 추가됨.
+- **데이터 파이프라인**: `build_match_tree.py` (프로젝트 폴더에서 `py build_match_tree.py`) → `app/data/match_tree.json`(49KB) + `app/data/shaft_index.json`(209KB). 엑셀 원본 `data/00 matching data.xlsx`.
+- **SW**: `CACHE_VERSION` → `20260604`, ASSETS에 `match.js` + JSON 2종 추가.
+
+### 새 파일 구조 (v13)
+```
+app/
+├── index.html        ← UI + STATE + 폼 로직 + 직접입력(Quick Entry) 컨트롤러
+├── rules.js          ← RULES / FORM_DEFAULTS / normalizeBrand / LOFT_TABLE
+├── ai.js             ← callClaudeVision / analyzePhotos
+├── export.js         ← csvCell / exportCSV / exportXLSX
+├── match.js          ← (신규) 계층 자동완성 / SHAFT 폴백 / 퍼지매칭 / Web Speech / 방법A 병합
+├── sw.js             ← Service Worker (20260604, match.js+JSON 캐시)
+├── data/match_tree.json   ← (신규) TYPE>BRAND>MODEL:count
+├── data/shaft_index.json  ← (신규) byModel/byBrand/byType
+├── manifest.json
+└── icon-*.png/svg
+build_match_tree.py   ← (신규) 엑셀→JSON 변환
+data/00 matching data.xlsx ← (신규) 매칭 원본 7,120건
+```
+
 ### 회귀 방지 메모
 - Code Review 본문: `docs/code_review_20260530.md`
 - Flex/브랜드/타입 규칙 변경 시 **반드시 `app/rules.js`와 `docs/data_analysis.md §7-3` 동시 수정**
+- **매칭 데이터 갱신 시**: `data/00 matching data.xlsx` 수정 → `py build_match_tree.py` 재실행 → JSON 2종 재생성 → push (sw.js CACHE_VERSION 자동 갱신). 자세한 운영(방법 A/B/C)은 계획서 §10-B.
+- **직접 입력 후보가 안 뜰 때**: ① JSON 로드 실패(콘솔 확인) ② `STATE.entries` 필드명(`type/brand/model/shaftModel`)이 match.js 추출자와 일치하는지 확인.

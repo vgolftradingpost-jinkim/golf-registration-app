@@ -1,5 +1,5 @@
 // 앱 코드 변경 시 버전 번호를 올려주세요 (캐시 자동 갱신)
-const CACHE_VERSION = '20260530';
+const CACHE_VERSION = '20260604';
 const CACHE_NAME = `golf-reg-${CACHE_VERSION}`;
 const ASSETS = [
   './',
@@ -9,7 +9,10 @@ const ASSETS = [
   './icon-512.png',
   './rules.js',
   './ai.js',
-  './export.js'
+  './export.js',
+  './match.js',
+  './data/match_tree.json',
+  './data/shaft_index.json'
 ];
 
 self.addEventListener('install', e => {

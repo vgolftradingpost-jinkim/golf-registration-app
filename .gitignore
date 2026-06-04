@@ -9,6 +9,10 @@ Thumbs.db
 # Logs
 *.log
 
-# API keys (절대 커밋 금지)
+# API keys / tokens (절대 커밋 금지)
 .env
 *.env
+api/*token*.txt
+api/*token*.TXT
+*secret*
+*.pem
