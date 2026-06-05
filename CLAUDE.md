@@ -66,7 +66,9 @@ Hybrid Women: 2H=19.5, 3H=21.5, 4H=24.0, 5H=26.5, 6H=29.5, 7H=32.0
 
 ---
 
-## 현재 상태 (v14, 2026-06-04) — 직접 입력 UI 개편: 검색형 드롭다운 + 음성 제거 (아래 v14 변경 참조)
+## 현재 상태 (v15, 2026-06-04) — 1차 검증 피드백: SHAFT 전체 검색형 + VGT/eBay 조회 쿼리 단순화 (아래 v15 변경 참조)
+
+## 이전 상태 (v14, 2026-06-04) — 직접 입력 UI 개편: 검색형 드롭다운 + 음성 제거 (아래 v14 변경 참조)
 
 ## 이전 상태 (v13, 2026-06-04) — 자판/음성 직접 입력 추가 (아래 v13 변경 참조)
 
@@ -142,6 +144,15 @@ build_match_tree.py   ← (신규) 엑셀→JSON 변환
 data/00 matching data.xlsx ← (신규) 매칭 원본 7,120건
 ```
 
+### v15 변경 (2026-06-04, 1차 모바일 검증 피드백 2건)
+
+스마트폰 1차 검증에서 나온 2건 반영. 첫째, 직접입력 SHAFT 드롭다운이 모델/브랜드 종속이라 후보가 거의 안 뜸. 둘째, VGT/eBay 조회가 TITLE 전체(도수·Flex 포함)를 검색어로 써 "일치 상품 없음"이 빈번.
+
+- **첨부1 — SHAFT 전체 검색형 전환**: `match.js`에 `getAllShaftCandidates()` 신규 추가 — `shaft_index.json`의 byModel/byBrand/byType + `STATE.entries`를 **전부 합산**해 전체 고유 샤프트(실데이터 2,290건)를 빈도순 반환. `index.html`의 `ddCandidates()` shaft 분기를 3단계 폴백(`getShaftCandidates`) 대신 **전체 풀 + `filterCandidates()` 부분일치**로 교체(BRAND 필드와 동일 동작). 헤드 라벨 `샤프트 검색 (전체, 사용 빈도순)`. → "ALDILA"/"ald" 등 한두 단어로도 전체에서 드롭다운 노출(node 실데이터 검증 통과). `getShaftCandidates`(3단계 폴백)는 코드에 남겨둠(미사용, 향후 참고용).
+- **첨부2 — VGT/eBay 조회 쿼리 단순화**: `index.html`에 `buildMarketQuery()` 신규 — `f-brand`+`f-type`+`f-model` **세 항목만 공백 연결**(순서: **BRAND TYPE MODEL**, 예 `TaylorMade Hybrid GAPR LO`). `triggerMarketSearch()`·`triggerEbaySearch()` 둘 다 TITLE 대신 이 쿼리 사용(도수·Flex 제외 → 매칭률↑). 검색 라벨도 새 쿼리 표시. **TITLE 필드·저장 데이터는 무변경**, 조회 쿼리만 변경. 빈 입력 시 토스트 `BRAND/MODEL을 먼저 입력해 주세요`.
+- **SW**: `CACHE_VERSION` `20260604` → **`20260604c`**. ⚠️ CLAUDE.md엔 v14에서 `20260604b`로 기재됐으나 실제 sw.js는 base(`20260604`)였음 — 작업본 sw.js가 53줄에서 **잘려 있던(`.catch` 폴백 누락) 손상 상태**라 `git show HEAD:app/sw.js`로 복원 후 버전만 치환해 복구(57줄 정상).
+- **검증**: match.js/sw.js `node --check` 통과, index.html NUL 없음·`</html>` 정상 종료(1790→1793줄). Node(vm)로 실데이터 SHAFT 전체검색·ALDILA 필터 통과.
+
 ### v14 변경 (2026-06-04, 직접 입력 UI 개편)
 
 1차 모바일 테스트 피드백 반영: 칩이 위쪽에 떠 안 보이고, 자판은 거의 완전히 쳐야 뜨고, 음성(en-US)이 모델명을 정확히 못 잡아 실효성 없음.
@@ -165,3 +176,6 @@ Cowork **Edit 도구로 index.html/match.js/sw.js/CLAUDE.md 수정 시 파일 �
 - **매칭 데이터 갱신 시**: `data/00 matching data.xlsx` 수정 → `py build_match_tree.py` 재실행 → JSON 2종 재생성 → push (sw.js CACHE_VERSION 자동 갱신). 자세한 운영(방법 A/B/C)은 계획서 §10-B.
 - **직접 입력 후보가 안 뜰 때**: ① JSON 로드 실패(콘솔 확인) ② `STATE.entries` 필드명(`type/brand/model/shaftModel`)이 match.js 추출자와 일치하는지 확인.
 - **드롭다운(v14)이 안 뜰 때**: ① `loadMatchData()` 완료 전이면 빈 목록 → `setInputMode('manual')`에서 로드 호출함 ② `mi-dd-*` 컨테이너 존재/`.open` 클래스 확인 ③ `MATCH.tree[TYPE]`에 해당 TYPE 키 존재 여부(`miType()` 폴백 Driver).
+- **(v15) SHAFT 드롭다운이 비었을 때**: `getAllShaftCandidates()`는 `MATCH.shaft`(shaft_index.json) 로드 여부에 의존 → JSON 로드 실패 시 빈 목록. 콘솔에서 `MATCH.loaded`/`MATCH.shaft` 확인.
+- **(v15) VGT/eBay 조회 쿼리 변경 시**: 검색어는 `buildMarketQuery()`(`f-brand`+`f-type`+`f-model`, 순서 **BRAND TYPE MODEL**)에서 단일 생성. 순서/항목 변경은 이 함수 한 곳만 수정하면 VGT·eBay 동시 반영. TITLE 필드(`f-title`)와는 독립.
+- **(v15 사고) sw.js 절단 재발**: 작업본 sw.js가 53줄에서 `.catch` 폴백 누락된 채 잘려 있었음. `node --check`(CRLF는 LF 변환 후)로 매 배포 전 검증, 손상 시 `git show HEAD:app/sw.js` 복원 후 버전만 치환.

@@ -928,11 +928,9 @@ function ddCandidates(field, filter) {
     const cands = getModelCandidates(miType(), MI.brand);
     return { head: MI.brand + ' 모델 (빈도순)', list: filterCandidates(filter, cands, 30) };
   }
-  // shaft — 3단계 폴백 + 라벨 유지
-  const res = getShaftCandidates(miType(), MI.brand, MI.model);
-  const list = filter ? filterCandidates(filter, res.list, 30) : res.list;
-  const head = res.list.length ? ('추천 샤프트 (' + res.label + ')') : '추천 없음 — 직접 입력하세요';
-  return { head, list };
+  // shaft — (v15) 전체 샤프트 풀에서 BRAND처럼 부분단어 검색
+  const cands = (typeof getAllShaftCandidates === 'function') ? getAllShaftCandidates() : [];
+  return { head: '샤프트 검색 (전체, 사용 빈도순)', list: filterCandidates(filter, cands, 30) };
 }
 
 /* ---- 드롭다운 렌더 / 열기 / 닫기 ---- */
@@ -1185,21 +1183,26 @@ function populateEditForm(aiResult) {
 /* ================================================================
    MARKET SEARCH — VGT Store (Shopify) + eBay Canada
    ================================================================ */
+/* (v15) 조회 쿼리 — BRAND TYPE MODEL 세 항목만 공백 연결 */
+function buildMarketQuery() {
+  const brand = document.getElementById('f-brand').value.trim();
+  const type  = document.getElementById('f-type').value.trim();
+  const model = document.getElementById('f-model').value.trim();
+  return [brand, type, model].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+}
+
 async function triggerMarketSearch() {
-  const title = document.getElementById('f-title').value.trim();
-  if (!title) { toast('TITLE을 먼저 생성해 주세요.', true); return; }
+  const searchQ = buildMarketQuery();
+  if (!searchQ) { toast('BRAND/MODEL을 먼저 입력해 주세요.', true); return; }
 
   const panel      = document.getElementById('market-search-panel');
   const resultsEl  = document.getElementById('vgt-results');
   const queryLabel = document.getElementById('market-query-label');
 
   panel.style.display = 'block';
-  queryLabel.textContent = '검색: ' + title;
+  queryLabel.textContent = '검색: ' + searchQ;
   resultsEl.innerHTML = `<div class="vgt-loading"><div class="vgt-mini-spinner"></div>VGT Store 조회 중...</div>`;
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-  // TITLE 내용 그대로 사용 ("/" 포함) — "()" "°" 만 제거
-  const searchQ = title.replace(/[\(\)°"]/g, ' ').replace(/\s+/g, ' ').trim();
   const shopifyUrl = `https://golftradingpost.ca/search/suggest.json?q=${encodeURIComponent(searchQ)}&resources[type]=product&resources[limit]=6`;
   const proxyUrl   = `https://corsproxy.io/?${encodeURIComponent(shopifyUrl)}`;
 
@@ -1339,9 +1342,9 @@ function updateClubNumberSelector() {
    EBAY SEARCH — TITLE 필드 내용 그대로 ("/" 포함) ebay.ca 새 탭 열기
    ================================================================ */
 function triggerEbaySearch() {
-  const title = document.getElementById('f-title').value.trim();
-  if (!title) { toast('TITLE을 먼저 생성해 주세요.', true); return; }
-  const enc     = encodeURIComponent(title + ' used');  // TITLE 전체 + " used"
+  const searchQ = buildMarketQuery();  // (v15) BRAND TYPE MODEL
+  if (!searchQ) { toast('BRAND/MODEL을 먼저 입력해 주세요.', true); return; }
+  const enc     = encodeURIComponent(searchQ + ' used');  // BRAND TYPE MODEL + " used"
   const ebayUrl = `https://www.ebay.ca/sch/i.html?_nkw=${enc}&_sop=15&LH_ItemCondition=3000`;
   window.open(ebayUrl, '_blank', 'noopener');
 }

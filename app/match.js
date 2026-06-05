@@ -116,6 +116,26 @@ function getShaftCandidates(type, brand, model) {
   return { stage: 'type', label: '타입 전체', list };
 }
 
+/* (v15) 전체 샤프트 풀 — BRAND 필드처럼 전체에서 부분단어 검색용.
+   byModel/byBrand/byType 전부 + STATE.entries 를 합산해 고유 샤프트를 빈도순 반환.
+   모델/브랜드 종속 없이 어떤 입력값이든 전체에서 매칭되도록 함. */
+function getAllShaftCandidates() {
+  const sh = MATCH.shaft || { byModel: {}, byBrand: {}, byType: {} };
+  const m = Object.create(null);
+  const addMap = (obj) => {
+    for (const k in obj) {
+      const inner = obj[k];
+      for (const name in inner) m[name] = (m[name] || 0) + inner[name];
+    }
+  };
+  addMap(sh.byModel);
+  addMap(sh.byBrand);
+  addMap(sh.byType);
+  const learned = entriesAsCounter(e => (e.shaftModel ? [e.shaftModel] : []));
+  for (const k in learned) m[k] = (m[k] || 0) + learned[k];
+  return Object.keys(m).sort((a, b) => m[b] - m[a]);
+}
+
 /* ================================================================
    퍼지 매칭 — 오타/음성 오인식 보정
    ================================================================ */
