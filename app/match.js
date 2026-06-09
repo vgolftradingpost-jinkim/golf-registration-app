@@ -116,6 +116,29 @@ function getShaftCandidates(type, brand, model) {
   return { stage: 'type', label: '타입 전체', list };
 }
 
+/* (v16) Model-first 진입용 — TYPE 의 전체 MODEL 후보 (빈도순).
+   브랜드를 가로질러 같은 모델명 count 합산. 기준 + 등록(STATE.entries) 병합. */
+function getAllModelCandidates(type) {
+  const base = {};
+  const t = (MATCH.tree && MATCH.tree[type]) || {};
+  for (const b in t)
+    for (const m in t[b]) base[m] = (base[m] || 0) + t[b][m];
+  const learned = entriesAsCounter(e =>
+    (e.type === type && e.model) ? [e.model] : []);
+  return mergeRank(base, learned);
+}
+
+/* (v16) MODEL 을 보유한 BRAND 후보 (빈도순) — 자동확정/수정 후보용. */
+function getBrandCandidatesByModel(type, model) {
+  const base = {};
+  const t = (MATCH.tree && MATCH.tree[type]) || {};
+  for (const b in t)
+    if (t[b][model]) base[b] = (base[b] || 0) + t[b][model];
+  const learned = entriesAsCounter(e =>
+    (e.type === type && e.model === model && e.brand) ? [e.brand] : []);
+  return mergeRank(base, learned);
+}
+
 /* (v15) 전체 샤프트 풀 — BRAND 필드처럼 전체에서 부분단어 검색용.
    byModel/byBrand/byType 전부 + STATE.entries 를 합산해 고유 샤프트를 빈도순 반환.
    모델/브랜드 종속 없이 어떤 입력값이든 전체에서 매칭되도록 함. */

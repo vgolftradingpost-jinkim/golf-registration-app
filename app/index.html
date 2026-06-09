@@ -238,23 +238,23 @@ input[type="file"].hidden-input{position:absolute;width:0;height:0;opacity:0;poi
     <div class="card">
       <div class="card-title">Quick Entry <span style="font-size:11px;font-weight:400;color:var(--text-light)">(입력 → 목록에서 선택 ⌨️)</span></div>
 
-      <!-- BRAND -->
-      <div class="mi-field" id="mi-field-brand">
-        <div class="mi-label">Brand</div>
-        <div class="mi-dd-wrap">
-          <input class="form-input" id="mi-brand" placeholder="브랜드 입력/선택 (예: TaylorMade)" autocomplete="off"
-                 oninput="onManualBrandInput()" onfocus="openDD('brand')" onkeydown="ddKey(event,'brand')">
-          <div class="mi-dd" id="mi-dd-brand"></div>
-        </div>
-      </div>
-
-      <!-- MODEL -->
-      <div class="mi-field disabled" id="mi-field-model">
+      <!-- MODEL (v16: 첫 입력) -->
+      <div class="mi-field" id="mi-field-model">
         <div class="mi-label">Model</div>
         <div class="mi-dd-wrap">
           <input class="form-input" id="mi-model" placeholder="모델 입력/선택 (예: SIM2 MAX)" autocomplete="off"
                  oninput="onManualModelInput()" onfocus="openDD('model')" onkeydown="ddKey(event,'model')">
           <div class="mi-dd" id="mi-dd-model"></div>
+        </div>
+      </div>
+
+      <!-- BRAND (v16: 모델 선택 시 자동확정 / 수정가능) -->
+      <div class="mi-field disabled" id="mi-field-brand">
+        <div class="mi-label">Brand</div>
+        <div class="mi-dd-wrap">
+          <input class="form-input" id="mi-brand" placeholder="모델 선택 시 자동 / 직접 선택 가능" autocomplete="off"
+                 oninput="onManualBrandInput()" onfocus="openDD('brand')" onkeydown="ddKey(event,'brand')">
+          <div class="mi-dd" id="mi-dd-brand"></div>
         </div>
       </div>
 
@@ -912,7 +912,7 @@ function resetManual() {
   MI.type = document.getElementById('capture-type').value || '';
   MI.brand = MI.model = MI.shaft = '';
   ['brand','model','shaft'].forEach(f => { document.getElementById('mi-' + f).value = ''; });
-  document.getElementById('mi-field-model').classList.add('disabled');
+  document.getElementById('mi-field-brand').classList.add('disabled');
   document.getElementById('mi-field-shaft').classList.add('disabled');
   closeDD();
   document.getElementById('mi-continue').disabled = true;
@@ -920,13 +920,13 @@ function resetManual() {
 
 /* ---- 후보 계산 (필드별) ---- */
 function ddCandidates(field, filter) {
-  if (field === 'brand') {
-    const cands = (typeof getBrandCandidates === 'function') ? getBrandCandidates(miType()) : [];
-    return { head: 'Brand 추천 (사용 빈도순)', list: filterCandidates(filter, cands, 30) };
-  }
   if (field === 'model') {
-    const cands = getModelCandidates(miType(), MI.brand);
-    return { head: MI.brand + ' 모델 (빈도순)', list: filterCandidates(filter, cands, 30) };
+    const cands = (typeof getAllModelCandidates === 'function') ? getAllModelCandidates(miType()) : [];
+    return { head: 'Model 추천 (사용 빈도순)', list: filterCandidates(filter, cands, 30) };
+  }
+  if (field === 'brand') {
+    const cands = (typeof getBrandCandidatesByModel === 'function') ? getBrandCandidatesByModel(miType(), MI.model) : [];
+    return { head: (MI.model ? MI.model + ' 보유 브랜드' : 'Brand 추천'), list: filterCandidates(filter, cands, 30) };
   }
   // shaft — (v15) 전체 샤프트 풀에서 BRAND처럼 부분단어 검색
   const cands = (typeof getAllShaftCandidates === 'function') ? getAllShaftCandidates() : [];
@@ -1007,15 +1007,19 @@ function onManualShaftInput() {
 /* ---- 선택 확정 ---- */
 function pick(field, val) {
   const v = (val || '').trim();
-  if (field === 'brand') {
-    MI.brand = v; document.getElementById('mi-brand').value = v;
-    MI.model = ''; MI.shaft = '';
-    document.getElementById('mi-model').value = '';
-    document.getElementById('mi-shaft').value = '';
-  } else if (field === 'model') {
+  if (field === 'model') {
     MI.model = v; document.getElementById('mi-model').value = v;
-    MI.shaft = '';
-    document.getElementById('mi-shaft').value = '';
+    MI.shaft = ''; document.getElementById('mi-shaft').value = '';
+    // (v16) Model 선택 시 보유 Brand 자동확정 (단일이면 채움, 0/다중이면 사용자 선택 유도)
+    const bcs = (typeof getBrandCandidatesByModel === 'function') ? getBrandCandidatesByModel(miType(), MI.model) : [];
+    if (bcs.length === 1) {
+      MI.brand = bcs[0]; document.getElementById('mi-brand').value = bcs[0];
+    } else {
+      MI.brand = ''; document.getElementById('mi-brand').value = '';
+    }
+  } else if (field === 'brand') {
+    MI.brand = v; document.getElementById('mi-brand').value = v;
+    MI.shaft = ''; document.getElementById('mi-shaft').value = '';
   } else {
     MI.shaft = v; document.getElementById('mi-shaft').value = v;
   }
@@ -1026,10 +1030,10 @@ function pick(field, val) {
 
 /* 활성/비활성 단계 동기화 (brand→model→shaft) */
 function syncStages() {
-  const brandOk = !!MI.brand;
   const modelOk = !!MI.model;
-  document.getElementById('mi-field-model').classList.toggle('disabled', !brandOk);
-  document.getElementById('mi-field-shaft').classList.toggle('disabled', !(brandOk && modelOk));
+  const brandOk = !!MI.brand;
+  document.getElementById('mi-field-brand').classList.toggle('disabled', !modelOk);
+  document.getElementById('mi-field-shaft').classList.toggle('disabled', !(modelOk && brandOk));
 }
 
 function updateMiContinue() {

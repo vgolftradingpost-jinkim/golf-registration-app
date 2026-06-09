@@ -66,7 +66,9 @@ Hybrid Women: 2H=19.5, 3H=21.5, 4H=24.0, 5H=26.5, 6H=29.5, 7H=32.0
 
 ---
 
-## 현재 상태 (v15, 2026-06-04) — 1차 검증 피드백: SHAFT 전체 검색형 + VGT/eBay 조회 쿼리 단순화 (아래 v15 변경 참조)
+## 현재 상태 (v16, 2026-06-09) — 직접입력 순서 변경: Model 먼저 → Brand 자동확정(+수정) → Shaft 전체검색 (아래 v16 변경 참조)
+
+## 이전 상태 (v15, 2026-06-04) — 1차 검증 피드백: SHAFT 전체 검색형 + VGT/eBay 조회 쿼리 단순화 (아래 v15 변경 참조)
 
 ## 이전 상태 (v14, 2026-06-04) — 직접 입력 UI 개편: 검색형 드롭다운 + 음성 제거 (아래 v14 변경 참조)
 
@@ -143,6 +145,18 @@ app/
 build_match_tree.py   ← (신규) 엑셀→JSON 변환
 data/00 matching data.xlsx ← (신규) 매칭 원본 7,120건
 ```
+
+### v16 변경 (2026-06-09, 직접입력 순서 Model-first 전환)
+
+2차 피드백: 직접입력 시 Brand부터 좁혀가는 대신 **Model을 먼저** 입력하는 게 자연스럽다는 요청. 계획서 `docs/improve-plan_model-first_20260609.md`.
+
+- **입력 순서 변경**: Quick Entry 가 `Brand→Model→Shaft` 에서 **`Model→Brand→Shaft`** 로 변경. Model 입력칸이 첫 활성, Brand는 Model 확정 후 활성, Shaft는 기존대로 전체검색.
+- **Model→Brand 자동확정(+수정가능)**: Model 선택 시 그 모델 보유 브랜드가 **1개면 Brand 자동 채움**, 0/다중이면 비워 사용자 선택 유도. 자동확정돼도 Brand 칸 편집 가능. (실데이터: Driver 489개 모델 중 다중브랜드는 1개뿐 → 거의 자동확정)
+- **match.js 함수 2개 신규**: `getAllModelCandidates(type)`(TYPE 전체 모델 빈도순) + `getBrandCandidatesByModel(type, model)`(모델 보유 브랜드 역조회). **JSON 재생성 불필요** — 기존 `match_tree.json` 런타임 역순회. 기존 `getBrandCandidates`/`getModelCandidates`는 롤백용으로 **보존**(미사용).
+- **index.html**: HTML Brand↔Model 블록 위치 교체, `ddCandidates`(brand/model 분기 의미 반전), `pick`(model 선택 시 Brand 자동확정 + 하위 리셋 방향 반전), `syncStages`(model→brand→shaft 활성화 체인), `resetManual`(초기 disabled = brand/shaft) 수정.
+- **무영향**: 사진→AI, Edit/Save/List/Export, shaft 전체검색(v15), 방법A 자동학습 모두 그대로. `manualContinue`→`populateEditForm` 전달값 동일(순서 무관).
+- **SW**: `CACHE_VERSION` `20260604`(작업본 실제값) → **`20260609`**. ⚠️ CLAUDE.md v15엔 `20260604c`로 기재됐으나 작업본 sw.js 실제값은 base `20260604`였음(56줄 정상, 절단 없음).
+- **검증**: match.js/sw.js `node --check`, index.html NUL 0·1797줄·`</html>` 종료 확인. Node(vm) 실데이터: M2→TaylorMade 자동확정, ASIRI→[KAMUI,Kamui Works] 다중노출, SIM2 Max→TaylorMade, 미등록모델→빈후보(입력값 진행), 방법A 학습 반영 전부 통과.
 
 ### v15 변경 (2026-06-04, 1차 모바일 검증 피드백 2건)
 
