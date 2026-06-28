@@ -42,9 +42,9 @@ Driver / Wood / Hybrid / Iron Set / Wedge / Putter / Full Set / Etc / Shaft / Re
 Regular-flex / Stiff-flex / Stiff/Regular-flex / eXtra stiff-flex / Ladies-flex / A(Senior)-flex / Wedge-flex
 
 ### TITLE 형식
-`{Brand} {TYPE} / {Model} / {Degrees or ClubNum} / {Flex} [/ Women] [/ Lefty]`
+`{Brand} {TYPE} / {Model} / {Degrees or ClubNum} [/ pcs] [/ Women] [/ Lefty] / {Flex}`  ← Flex는 항상 맨 뒤
 - Wood/Hybrid: `TaylorMade Wood / SIM / 5W(18.5) / S`
-- Iron Set: `Callaway Iron Set / Apex / R / 7pcs`
+- Iron Set: `Callaway Iron Set / Apex / 7pcs / R`
 
 ### SPEC 형식
 `{shaft} shaft, {weight}g, {flex-full}, [pcs,] {degrees} degrees, {gender}'s {handed}-handed`
@@ -66,7 +66,9 @@ Hybrid Women: 2H=19.5, 3H=21.5, 4H=24.0, 5H=26.5, 6H=29.5, 7H=32.0
 
 ---
 
-## 현재 상태 (v16, 2026-06-09) — 직접입력 순서 변경: Model 먼저 → Brand 자동확정(+수정) → Shaft 전체검색 (아래 v16 변경 참조)
+## 현재 상태 (v17, 2026-06-28) — TITLE flex 위치 수정: flex가 항상 맨 뒤로 (아래 v17 변경 참조)
+
+## 이전 상태 (v16, 2026-06-09) — 직접입력 순서 변경: Model 먼저 → Brand 자동확정(+수정) → Shaft 전체검색 (아래 v16 변경 참조)
 
 ## 이전 상태 (v15, 2026-06-04) — 1차 검증 피드백: SHAFT 전체 검색형 + VGT/eBay 조회 쿼리 단순화 (아래 v15 변경 참조)
 
@@ -145,6 +147,19 @@ app/
 build_match_tree.py   ← (신규) 엑셀→JSON 변환
 data/00 matching data.xlsx ← (신규) 매칭 원본 7,120건
 ```
+
+### v17 변경 (2026-06-28, TITLE flex 위치 수정 + GitHub 동기화)
+
+수출(xlsx) 결과에서 TITLE의 flex가 `A / Lefty`, `S / 7pcs / Lefty`, `Uni / 7pcs`처럼 중간에 끼어 "섞여" 보이는 문제. 원인은 `regenerateFields()`의 `titleParts` 조립 순서가 **flex → pcs → Women → Lefty**로, flex가 먼저 push되던 것. 문서(이 파일·data_analysis.md)의 TITLE 형식 문자열도 `{Flex} [/ Women] [/ Lefty]`로 flex가 앞에 오게 적혀 있어 코드와 함께 옛 규칙을 따르고 있었음(단, data_analysis.md 예시 120~121줄은 이미 flex-last로 자기모순 상태였음).
+
+- **TITLE 조립 순서 변경**: `app/index.html`의 `regenerateFields()`에서 `titleParts.push(flex)`를 pcs·Women·Lefty·putterLen **뒤로 이동**. 이제 flex가 TITLE **항상 맨 뒤**. SPEC 조립(별도 규칙)은 무변경.
+- **문서 동기화**: `CLAUDE.md`·`docs/data_analysis.md`의 TITLE 형식 문자열을 `… [/ pcs] [/ Women] [/ Lefty] / {Flex}`로 통일.
+- **검증**: 보고된 4개 행(2~8행 `Lefty / A`, 10행 `7pcs / Lefty / S`, 12행 `7pcs / Uni`, 31행 `2H(17.0) / Lefty / S`) Node 재현 테스트 전부 통과. ⚠️ **기존 저장 항목은 변경되지 않음** — 새로 생성되는 TITLE에만 적용.
+- **SW**: `CACHE_VERSION` `20260609` → **`20260628`**.
+
+#### 동기화/복구 사고 (2026-06-28)
+- GitHub `origin/main`이 로컬보다 앞서(`6e605c8`) 있어 fast-forward 동기화 진행(로컬 detached HEAD v11 베이스 + 미커밋 v15 작업본 → 전부 origin에 포함돼 손실 없음 확인 후).
+- ⚠️ 마운트(샌드박스) FS의 **unlink/rename 'Operation not permitted'** 때문에 git이 `.git/index.lock` 삭제·파일 교체에 실패. fast-forward 시 큰 파일 3개(`CLAUDE.md`·`app/index.html`·`app/match.js`)가 **끝부분 절단**됨(index.html 1798→1729줄). `git show HEAD:파일`로 원본 추출→**Python read-back 검증 쓰기**로 전량 복원 후 수정 재적용. 교훈: 마운트에서 git checkout/merge도 대형 파일 절단을 유발하므로, 배포용 git 작업은 Windows 측에서 수행.
 
 ### v16 변경 (2026-06-09, 직접입력 순서 Model-first 전환)
 

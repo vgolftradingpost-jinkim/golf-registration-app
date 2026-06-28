@@ -94,7 +94,7 @@ PRICE:         90.0
 
 ### 기본 구조
 ```
-{브랜드명} {TYPE} / {모델명} / {도수 or 구성} / {Flex} [/ Women or Lefty]
+{브랜드명} {TYPE} / {모델명} / {도수 or 구성} [/ pcs] [/ Women or Lefty] / {Flex}
 ```
 
 ### TYPE별 패턴
@@ -221,7 +221,7 @@ Pick up only, Strata 10 pcs Complete Set for Starter(No bag), Driver, 3wood, 4,5
 
 ### PRODUCT NAME 생성 규칙
 ```
-{브랜드} {TYPE} / {모델} / {도수 or 구성} / {Flex} [/ Women] [/ Lefty]
+{브랜드} {TYPE} / {모델} / {도수 or 구성} [/ pcs] [/ Women] [/ Lefty] / {Flex}
 ```
 
 ### SPECIFICATION 생성 규칙

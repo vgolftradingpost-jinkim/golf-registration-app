@@ -1407,12 +1407,12 @@ function regenerateFields() {
   } else if (clubNumRaw) {
     titleParts.push(clubNumRaw);
   }
-  // W(Wedge-flex)는 항상 생략, Women + L 조합에서도 L 생략 (Women으로 충분히 Ladies 표시됨)
-  if (flex && flex !== '-' && flex !== 'W' && !(flex === 'L' && gender === 'Women')) titleParts.push(flex);
   if (ironPcs.titlePcs) titleParts.push(ironPcs.titlePcs);
   if (gender === 'Women') titleParts.push('Women');
   if (handed === 'Left') titleParts.push('Lefty');
   if (putterLen) titleParts.push(putterLen); // Putter: 맨 끝에 길이 추가
+  // FLEX는 항상 TITLE 맨 뒤 (W=Wedge-flex 생략, Women+L 조합에서 L 생략)
+  if (flex && flex !== '-' && flex !== 'W' && !(flex === 'L' && gender === 'Women')) titleParts.push(flex);
   document.getElementById('f-title').value = titleParts.join(' / ');
 
   // Flex full name for spec — RULES.flexMap 참조
