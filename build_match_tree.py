@@ -1,20 +1,30 @@
 # -*- coding: utf-8 -*-
 """
-build_match_tree.py — 매칭 엑셀 → 자동완성 JSON 2종 변환
+build_match_tree.py — 매칭 엑셀 → 자동완성 JSON 2종 변환 (+ 폰 누적분 흡수)
 ================================================================
-입력 : data/00 matching data.xlsx  (시트 'final', 컬럼: TYPE / BRAND / MODEL / SHAFT)
+입력 : data/00 matching data.xlsx  (시트 'final', 컬럼: TYPE / BRAND / MODEL / SHAFT [/ SRC_NO])
+       data/incoming/*.xlsx|*.csv  (선택) 앱 'Export DB' 로 내려받은 폰 누적분
 출력 : app/data/match_tree.json    (TYPE > BRAND > MODEL:count 계층)
        app/data/shaft_index.json   (byModel / byBrand / byType — SHAFT 폴백용)
 
 실행 : (프로젝트 폴더 03 registration_app 에서)
        py build_match_tree.py
-       또는  py build_match_tree.py "data/00 matching data.xlsx"
+       py build_match_tree.py --dry-run                 ← 흡수 없이 미리보기
+       py build_match_tree.py "data/00 matching data.xlsx"
 
-데이터 갱신 시: 엑셀 수정 → 이 스크립트 재실행 → JSON 2종 재생성 → push
-                (push 시 sw.js CACHE_VERSION 자동 갱신됨 — push.bat 참조)
+폰 누적분 반영(방법 B) 흐름:
+       폰 List 화면 [Export DB] → 파일을 PC의 data/incoming/ 에 저장
+       → py build_match_tree.py   (마스터 엑셀에 흡수 + JSON 재생성)
+       → push.bat                 (sw.js CACHE_VERSION 자동 갱신 → 폰 PWA 수신)
+
+재흡수 방지: 각 행의 SRC_NO(등록 CODE)를 키로 사용. 마스터에 이미 있는
+SRC_NO 는 건너뛰므로 같은 파일을 두 번 넣어도 중복 집계되지 않는다.
+흡수한 incoming 파일은 data/incoming/done/ 으로 이동한다.
+마스터는 덮어쓰기 전 data/backup/ 에 자동 백업된다.
 ================================================================
 """
-import sys, os, json
+import sys, os, csv, json, glob, shutil
+from datetime import datetime
 from collections import defaultdict, Counter
 
 try:
@@ -25,10 +35,22 @@ except ImportError:
 # ---- 경로 ----
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_XLSX = os.path.join(SCRIPT_DIR, "data", "00 matching data.xlsx")
-XLSX_PATH = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_XLSX
+
+ARGS = [a for a in sys.argv[1:] if not a.startswith("-")]
+FLAGS = {a for a in sys.argv[1:] if a.startswith("-")}
+DRY_RUN = "--dry-run" in FLAGS or "-n" in FLAGS
+
+XLSX_PATH = ARGS[0] if ARGS else DEFAULT_XLSX
+DATA_DIR = os.path.dirname(os.path.abspath(XLSX_PATH))
+INCOMING_DIR = os.path.join(DATA_DIR, "incoming")
+DONE_DIR = os.path.join(INCOMING_DIR, "done")
+BACKUP_DIR = os.path.join(DATA_DIR, "backup")
+
 OUT_DIR = os.path.join(SCRIPT_DIR, "app", "data")
 TREE_PATH = os.path.join(OUT_DIR, "match_tree.json")
 SHAFT_PATH = os.path.join(OUT_DIR, "shaft_index.json")
+
+HEADERS = ["TYPE", "BRAND", "MODEL", "SHAFT", "SRC_NO"]
 
 # TYPE 표준화 (소문자 흔들림 보정 — 'wood' 1건 등)
 TYPE_NORMALIZE = {
@@ -37,34 +59,94 @@ TYPE_NORMALIZE = {
     "wedge": "Wedge", "putter": "Putter", "etc": "Etc",
 }
 
+
 def norm_type(t):
     if not t:
         return ""
     key = str(t).strip().lower()
     return TYPE_NORMALIZE.get(key, str(t).strip())
 
+
 def clean(x):
     return str(x).strip() if x is not None else ""
 
-def main():
-    if not os.path.exists(XLSX_PATH):
-        sys.exit(f"엑셀 파일 없음: {XLSX_PATH}")
 
-    wb = openpyxl.load_workbook(XLSX_PATH, data_only=True)
+def is_header(row):
+    """첫 행이 헤더인지 판정 (TYPE 으로 시작하면 헤더)"""
+    return bool(row) and clean(row[0]).upper() == "TYPE"
+
+
+def norm_row(vals):
+    """길이 무관 입력 → (TYPE, BRAND, MODEL, SHAFT, SRC_NO). 필수값 없으면 None"""
+    v = list(vals) + [None] * (5 - len(vals))
+    t, b, m, s, no = (norm_type(v[0]), clean(v[1]), clean(v[2]),
+                      clean(v[3]), clean(v[4]))
+    if not (t and b and m):
+        return None
+    return (t, b, m, s, no)
+
+
+# ================================================================
+#  incoming 읽기
+# ================================================================
+def read_incoming_xlsx(path):
+    wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
     ws = wb["final"] if "final" in wb.sheetnames else wb.worksheets[0]
+    out, first = [], True
+    for row in ws.iter_rows(min_row=1, max_col=5, values_only=True):
+        if first:
+            first = False
+            if is_header(row):
+                continue
+        r = norm_row(row)
+        if r:
+            out.append(r)
+    wb.close()
+    return out
 
-    rows = []
-    for r in range(2, ws.max_row + 1):
-        t, b, m, s = (ws.cell(r, c).value for c in range(1, 5))
-        if all(v is None for v in (t, b, m, s)):
+
+def read_incoming_csv(path):
+    out = []
+    # 앱 CSV 는 BOM 포함 → utf-8-sig
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        for i, row in enumerate(csv.reader(f)):
+            if i == 0 and is_header(row):
+                continue
+            r = norm_row(row)
+            if r:
+                out.append(r)
+    return out
+
+
+def collect_incoming():
+    """[(파일경로, [행...]), ...] — done/ 하위는 제외"""
+    if not os.path.isdir(INCOMING_DIR):
+        return []
+    files = sorted(
+        glob.glob(os.path.join(INCOMING_DIR, "*.xlsx"))
+        + glob.glob(os.path.join(INCOMING_DIR, "*.csv"))
+    )
+    batches = []
+    for p in files:
+        if os.path.basename(p).startswith("~$"):   # 엑셀 임시 파일
             continue
-        rows.append((norm_type(t), clean(b), clean(m), clean(s)))
+        try:
+            rows = (read_incoming_xlsx(p) if p.lower().endswith(".xlsx")
+                    else read_incoming_csv(p))
+        except Exception as e:
+            print(f"  [!] 읽기 실패, 건너뜀: {os.path.basename(p)} — {e}")
+            continue
+        batches.append((p, rows))
+    return batches
 
-    print(f"읽은 데이터: {len(rows)}건")
 
+# ================================================================
+#  JSON 빌드
+# ================================================================
+def build_json(rows):
     # ---- 1) match_tree: TYPE > BRAND > MODEL:count ----
     tree = defaultdict(lambda: defaultdict(Counter))
-    for t, b, m, s in rows:
+    for t, b, m, s, _no in rows:
         if t and b and m:
             tree[t][b][m] += 1
 
@@ -82,8 +164,8 @@ def main():
     # ---- 2) shaft_index: byModel / byBrand / byType ----
     by_model = defaultdict(Counter)   # "BRAND||MODEL" -> shaft:count
     by_brand = defaultdict(Counter)   # "BRAND"        -> shaft:count
-    by_type  = defaultdict(Counter)   # "TYPE"         -> shaft:count
-    for t, b, m, s in rows:
+    by_type = defaultdict(Counter)    # "TYPE"         -> shaft:count
+    for t, b, m, s, _no in rows:
         if not s:
             continue
         if b and m:
@@ -99,8 +181,95 @@ def main():
         # byType 는 폴백 최종 단계 — 상위 12개만 저장(앱에서 8개 사용, 여유분)
         "byType":  {k: dict(v.most_common(12)) for k, v in by_type.items()},
     }
+    return tree_out, shaft_out
+
+
+def main():
+    if not os.path.exists(XLSX_PATH):
+        sys.exit(f"엑셀 파일 없음: {XLSX_PATH}")
+
+    # ---- 마스터 로드 ----
+    wb = openpyxl.load_workbook(XLSX_PATH)          # data_only=False (수식 없음 확인됨)
+    ws = wb["final"] if "final" in wb.sheetnames else wb.worksheets[0]
+
+    rows, absorbed = [], set()
+    for r in range(2, ws.max_row + 1):
+        vals = [ws.cell(r, c).value for c in range(1, 6)]
+        if all(v is None for v in vals):
+            continue
+        nr = norm_row(vals)
+        if nr:
+            rows.append(nr)
+            if nr[4]:
+                absorbed.add(nr[4])
+    print(f"기준 데이터: {len(rows)}건 (흡수된 SRC_NO {len(absorbed)}개)")
+
+    # ---- incoming 흡수 ----
+    batches = collect_incoming()
+    new_rows, used_files, skipped = [], [], 0
+    for path, brows in batches:
+        picked = []
+        for nr in brows:
+            no = nr[4]
+            if no and no in absorbed:
+                skipped += 1
+                continue
+            if no:
+                absorbed.add(no)
+            picked.append(nr)
+        name = os.path.basename(path)
+        print(f"  incoming: {name} — 읽음 {len(brows)}행 / 신규 {len(picked)}행")
+        if picked:
+            new_rows.extend(picked)
+        used_files.append(path)
+
+    if not batches:
+        print("  incoming 없음 (data/incoming/ 비어 있음) — 기준 데이터로만 빌드")
+    elif skipped:
+        print(f"  중복(SRC_NO 기존) {skipped}행 건너뜀")
+
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    if new_rows and not DRY_RUN:
+        # 마스터 백업
+        os.makedirs(BACKUP_DIR, exist_ok=True)
+        base = os.path.splitext(os.path.basename(XLSX_PATH))[0]
+        bak = os.path.join(BACKUP_DIR, f"{base}_{stamp}.xlsx")
+        shutil.copy2(XLSX_PATH, bak)
+        print(f"  백업: {bak}")
+
+        # E열 헤더 보정 후 append
+        if clean(ws.cell(1, 5).value).upper() != "SRC_NO":
+            ws.cell(1, 5).value = "SRC_NO"
+        for nr in new_rows:
+            ws.append(list(nr))
+        wb.save(XLSX_PATH)
+        print(f"  마스터 흡수: +{len(new_rows)}행 → {XLSX_PATH}")
+    elif new_rows and DRY_RUN:
+        print(f"  [dry-run] 흡수 예정 {len(new_rows)}행 — 마스터/파일 변경 없음")
+
+    # 읽은 incoming 파일은 신규 0행(전부 중복)이어도 done/ 으로 이동한다.
+    # 남겨두면 매 실행마다 다시 읽혀 로그만 지저분해진다.
+    if used_files and not DRY_RUN:
+        os.makedirs(DONE_DIR, exist_ok=True)
+        for path in used_files:
+            dest = os.path.join(DONE_DIR, os.path.basename(path))
+            if os.path.exists(dest):
+                root, ext = os.path.splitext(os.path.basename(path))
+                dest = os.path.join(DONE_DIR, f"{root}_{stamp}{ext}")
+            shutil.move(path, dest)
+        print(f"  처리 완료 파일 {len(used_files)}개 → {DONE_DIR}")
+
+    all_rows = rows + new_rows
+    print(f"빌드 대상: {len(all_rows)}건")
+
+    tree_out, shaft_out = build_json(all_rows)
 
     # ---- 저장 ----
+    if DRY_RUN:
+        print("[dry-run] JSON 미기록. 종료.")
+        return
+
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(TREE_PATH, "w", encoding="utf-8") as f:
         json.dump(tree_out, f, ensure_ascii=False, separators=(",", ":"))
@@ -117,6 +286,7 @@ def main():
           f"byBrand {len(shaft_out['byBrand'])} / "
           f"byType {len(shaft_out['byType'])}")
     print("완료.")
+
 
 if __name__ == "__main__":
     main()

@@ -226,10 +226,29 @@ app/data/shaft_index.json  (SHAFT 폴백용)
 - 한계: "최초 1회 입력"은 후보에 없음(직접 입력으로 해결) / 내 기기에만 누적 → **Cloud 백업(improve-plan §1-1 GitHub Gist)과 묶으면 다기기 공유**
 - 구현 위치: `match.js`의 후보 생성 함수에서 `STATE.entries`를 같은 (type>brand>model / shaft) 구조로 집계해 병합
 
-### 방법 B — 주기적 엑셀 재빌드 (정제용, 분기 1회 권장)
+### 방법 B — 주기적 엑셀 재빌드 (정제용, 분기 1회 권장)  ※ v19에서 자동화 완료
 - `data/00 matching data.xlsx`에 신규 데이터 추가 → `py build_match_tree.py` 재실행 → JSON 2종 재생성 → push
 - 정확하고 깔끔하나 **PC에서 수동**(모바일 불가)
 - 방법 A로 누적된 항목을 가끔 엑셀에 흡수시켜 기준 데이터를 정제하는 용도
+
+**(v19, 2026-08-18) 실행 경로 개통 — 수동 복붙 불필요**
+
+당초 계획에는 "엑셀에 신규 데이터 추가"의 *구체적 수단*이 비어 있었음. 실제로는 폰 누적분을 꺼낼 방법이 없었는데, 원인은 `exportXLSX()`에 **SHAFT 열이 없어서** 빌드 스크립트가 요구하는 4열을 만들 수 없었던 것. v19에서 다음을 추가해 경로를 뚫음.
+
+| 구성 | 내용 |
+|------|------|
+| `exportMatchXLSX()` (export.js) | List 화면 `Export DB` 버튼. 시트 `final` / 헤더 `TYPE·BRAND·MODEL·SHAFT·SRC_NO` |
+| `data/incoming/` | 내려받은 파일을 넣어두는 반입 폴더 (README.txt 동봉) |
+| `build_match_tree.py` | incoming 자동 병합 + 마스터 백업 + `done/` 이동 + `--dry-run` |
+| `SRC_NO` (등록 CODE) | 재흡수 방지 키 — 같은 파일 두 번 넣어도 중복 집계 안 됨 |
+
+```
+폰 List → [Export DB] → PC의 data/incoming/ → py build_match_tree.py → push.bat → 폰 새로고침
+```
+
+- **SHAFT 합성 규칙**: 기준 엑셀 SHAFT는 `TaylorMade REAX` 같은 브랜드+모델 합본 단일 문자열. 앱의 `shaftBrand`+`shaftModel`을 합치되, `shaftModel`이 이미 브랜드로 시작하면 접두 중복을 피함.
+- **중복 "조합"은 남긴다**: 빈도(count)가 후보 순위에 직결되므로 같은 BRAND+MODEL 반복 등록은 제거 대상이 아님. 제거하는 것은 *같은 SRC_NO의 재흡수*뿐.
+- ⚠️ 실제 흡수는 **Windows에서** 실행할 것. 샌드박스 마운트는 rename 불가라 `done/` 이동이 실패함(`--dry-run`은 안전).
 
 ### 방법 C — Shopify 자동 동기화 (장기 과제)
 - 이미 vgolftradingpost Shopify 스토어에 상품 등록 중 → 실제 판매 상품이 곧 최신 데이터
@@ -238,8 +257,8 @@ app/data/shaft_index.json  (SHAFT 폴백용)
 
 ### 권장 운영 조합
 ```
-평소:   방법 A (자동 학습) — 손 안 대도 누적
-가끔:   방법 B (분기 1회) — 엑셀에 흡수·정제 후 재빌드·push
+평소:   방법 A (자동 학습) — 손 안 대도 폰에 누적
+가끔:   방법 B (분기 1회) — [Export DB] → incoming/ → 재빌드 → push  (v19부터 자동)
 장기:   방법 C — Shopify 동기화 검토
 ```
 

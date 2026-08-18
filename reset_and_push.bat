@@ -1,7 +1,18 @@
 @echo off
 setlocal enabledelayedexpansion
 title Golf Club App - History Reset and Push
-cd /d "C:\Users\redru\Desktop\01 Work_ai\03 registration_app"
+cd /d "%~dp0"
+
+REM 스크립트가 놓인 폴더 = 프로젝트 루트. 경로 하드코딩 금지(v19 사고: 옛 경로가
+REM 남아 있어 cd 가 조용히 실패하고 엉뚱한 폴더에서 git 이 돌 뻔했음).
+if not exist ".git" (
+    echo.
+    echo   [!] .git not found in "%CD%"
+    echo   [!] Put this script in the project root. Aborting.
+    echo.
+    pause
+    exit /b 1
+)
 
 echo.
 echo  ================================================

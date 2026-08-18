@@ -66,7 +66,11 @@ Hybrid Women: 2H=19.5, 3H=21.5, 4H=24.0, 5H=26.5, 6H=29.5, 7H=32.0
 
 ---
 
-## 현재 상태 (v17, 2026-06-28) — TITLE flex 위치 수정: flex가 항상 맨 뒤로 (아래 v17 변경 참조)
+## 현재 상태 (v19, 2026-08-18) — 폰 누적분 → 기준 DB 흡수 경로 개통: `Export DB` 버튼 + `incoming/` 자동 병합 (아래 v19 변경 참조)
+
+## 이전 상태 (v18, 2026-08-17) — 저장소 정비: `.gitattributes`로 CRLF 노이즈 차단 + `sync_pull.bat` 안전화 (앱 코드 무변경)
+
+## 이전 상태 (v17, 2026-06-28) — TITLE flex 위치 수정: flex가 항상 맨 뒤로 (아래 v17 변경 참조)
 
 ## 이전 상태 (v16, 2026-06-09) — 직접입력 순서 변경: Model 먼저 → Brand 자동확정(+수정) → Shaft 전체검색 (아래 v16 변경 참조)
 
@@ -148,6 +152,54 @@ build_match_tree.py   ← (신규) 엑셀→JSON 변환
 data/00 matching data.xlsx ← (신규) 매칭 원본 7,120건
 ```
 
+### v19 변경 (2026-08-18, 방법 B 실행 경로 개통 — 폰 누적분을 기준 DB로 흡수)
+
+폰에 쌓인 등록 데이터(방법 A, `localStorage.golf_entries`)를 기준 DB로 흡수하려는 요청. 확인해 보니 **경로 자체가 막혀 있었음**: `exportXLSX()` 컬럼이 `NO/TYPE/BRAND/MODEL/TITLE/SPEC/PRICE/COST/GENDER/HANDED/GRIP/DATE` 로 **SHAFT가 없어서**, `build_match_tree.py`가 요구하는 TYPE/BRAND/MODEL/**SHAFT** 4열을 만들 수 없었음(= `shaft_index.json` 학습분 전량 유실). `buildEntry()`에는 `shaftBrand`/`shaftModel`이 이미 저장되고 있어 데이터는 있었고 **내보내기만 빠져 있던 상태**.
+
+- **`app/export.js` — `exportMatchXLSX()` 신규**: 시트명 `final`, 헤더 `TYPE/BRAND/MODEL/SHAFT/SRC_NO`. `build_match_tree.py`가 수정 없이 그대로 읽는 형식. CDN 실패 시 `exportMatchCSV()` 폴백(빌드 스크립트가 .csv도 동일 형식으로 읽음). 기존 `exportXLSX`/`exportCSV`는 **무변경**(판매용 출력과 용도 분리).
+- **`shaftFull(e)` 합성 규칙**: 기준 엑셀 SHAFT는 `TaylorMade REAX` 처럼 **브랜드+모델 합본 단일 문자열**. 앱은 `shaftBrand`/`shaftModel` 분리 저장(직접입력 경로는 shaftBrand가 비고 shaftModel에 전체가 들어옴). → 둘을 합치되 `shaftModel`이 이미 브랜드로 시작하면 접두 중복을 피함(`ALDILA` + `ALDILA ASCENT` → `ALDILA ASCENT`).
+- **`app/index.html`**: List 화면에 `Export DB (자동완성 갱신용)` 버튼 1개 추가(기존 버튼 줄 아래 별도 행). 모듈 주석 2곳 동기화. 1797 → 1802줄.
+- **`build_match_tree.py` — incoming 자동 병합**: `data/incoming/*.xlsx|*.csv` 를 마스터와 함께 읽어 **신규 행만 마스터에 흡수** 후 JSON 2종 재생성. 부가 동작 3가지 — ① 덮어쓰기 전 `data/backup/` 자동 백업 ② 처리한 파일은 `data/incoming/done/` 으로 이동(이름 충돌 시 타임스탬프 접미) ③ `--dry-run` 플래그로 흡수 없이 미리보기. 기존 인자(`py build_match_tree.py "경로.xlsx"`)와 출력 JSON 스키마는 **하위호환**.
+- **중복 재흡수 방지 = `SRC_NO`(등록 CODE)**: 마스터 E열에 출처 CODE를 남기고, 이미 있는 SRC_NO는 건너뜀. **같은 파일을 두 번 넣어도 중복 집계되지 않음.** ⚠️ 단, 빈도(count)가 후보 순위에 직결되므로 **중복 "조합"(같은 BRAND+MODEL 반복 등록)은 일부러 제거하지 않음** — 그건 노이즈가 아니라 신호임.
+- **`.gitignore`**: `data/incoming/*`(단 `README.txt` 예외) + `data/backup/` 제외. 반입 원본·백업은 로컬 전용.
+- **`data/incoming/README.txt` 신규**: 폴더에 들어온 사람이 바로 따라 할 수 있는 4단계 운영 순서.
+- **SW**: `CACHE_VERSION` `20260628` → **`20260818`** (export.js·index.html 변경 반영). `export.js`는 이미 ASSETS에 있어 목록 변경 불필요.
+- **검증**: 마스터 실데이터 7,120건 사본으로 샌드박스 전 구간 통과 — ① xlsx 5행 + csv 1행 흡수 → 7,126건, JSON 재생성(byModel 2,418→2,419, byBrand 181→182) ② **같은 파일 재투입 시 신규 0행 / 중복 6행 건너뜀**(멱등성) ③ csv BOM + 소문자 type(`wood`→`Wood`) 정규화 ④ 백업·done 이동·충돌 리네임 ⑤ `shaftFull` 5개 케이스 Node 검증(빈 브랜드/접두중복/정상결합/샤프트없음/브랜드누락 제외). 실기기 `--dry-run`으로 실제 마스터 정상 판독(7,120건, 부작용 0) 확인.
+- ⚠️ **샌드박스에서 실행 금지**: 마운트 FS는 rename/unlink 불가라 `shutil.move`(done 이동)가 실패함. `build_match_tree.py`의 실제 흡수는 **반드시 Windows에서** 실행할 것(`--dry-run`은 마운트에서도 안전).
+
+- **배치 스크립트 3종 경로 하드코딩 제거**: `push.bat`·`reset_and_push.bat`·`start_server.bat` 의 `cd /d "C:\Users\redru\Desktop\01 Work_ai\03 registration_app"` (존재하지 않는 옛 경로)를 **`cd /d "%~dp0"`** 로 교체. `cd /d` 는 경로가 없어도 **에러 한 줄 찍고 그냥 진행**하므로, 그대로 두면 엉뚱한 폴더에서 `git push --force` 가 돌 수 있었음. 함께 **루트 검증 가드** 추가 — git 계열 2개는 `.git` 부재 시, `start_server.bat` 은 `app\index.html` 부재 시 즉시 `exit /b 1`. `commit.bat`/`sync_pull.bat` 은 이미 `%~dp0` 사용 중이라 무변경, `setup_github.ps1` 은 `Split-Path $MyInvocation` 방식이라 문제 없음.
+
+#### 배포 사고 (2026-08-18) — `index.lock` 때문에 "Done!" 인데 아무것도 안 올라감
+
+`push.bat` 실행 결과: `git add -A` / `git commit` 이 둘 다 `fatal: Unable to create '.../.git/index.lock': File exists` 로 실패했는데, 화면에는 `Everything up-to-date` → `Done!` 이 찍혀 **성공처럼 보였음**. 실제 HEAD 는 `dfca006` 그대로. 원인은 두 겹.
+
+1. **스테일 잠금**: Cowork 세션이 마운트 경유로 `git status` 를 실행하면 git 이 `.git/index.lock` 을 만든 뒤 **unlink 불가(Operation not permitted)** 로 못 지워 0바이트 파일이 남는다. 남아 있는 동안 로컬 git 의 add/commit 이 전부 막힌다.
+2. **실패 은폐**: 기존 `push.bat` 은 `git push` 의 errorlevel 만 검사했다. 커밋이 0건이면 push 는 정상적으로 "up-to-date" 를 반환하므로, **커밋 실패가 성공 메시지로 덮였다.**
+
+- **대응**: `push.bat` 에 **Step 0(스테일 `index.lock` 자동 삭제)** 추가 + `git add`/`git commit` 각각 `if errorlevel 1 goto COMMIT_FAIL` 로 **즉시 중단**. push 실패는 `:PUSH_FAIL` 로 분리. 성공 시 `git log --oneline -1` 과 잔여 `git status -s` 를 함께 출력해 **실제 반영 여부를 눈으로 확인**하게 함. (`commit.bat`·`sync_pull.bat` 은 이미 잠금 삭제 단계 보유)
+- ⚠️ **교훈**: 마운트에서 git **읽기 명령(`git status` 포함)** 도 잠금을 남긴다. 세션에서 로컬 repo 상태를 볼 일이 있으면 그 뒤 Windows 쪽 첫 git 작업이 막힐 수 있음을 전제할 것. 배포는 항상 Windows에서, 그리고 **`Done!` 이 아니라 `git log` 해시로 확인**할 것.
+
+#### 운영 순서 (방법 B, v19 기준)
+```
+폰 List → [Export DB]  →  match_add_YYYYMMDD.xlsx 다운로드
+        → PC의 data/incoming/ 에 저장
+        → py build_match_tree.py        (백업·흡수·JSON 재생성 자동)
+        → push.bat                      (sw.js CACHE_VERSION 자동 갱신)
+        → 폰 PWA 새로고침 → 새 후보 수신
+```
+
+### v18 변경 (2026-08-17, 줄바꿈(CRLF) 노이즈 차단 + 동기화 스크립트 안전화)
+
+GitHub 최신본 확인 요청에서 출발. 확인 결과 로컬 `main`은 이미 `origin/main`과 **같은 커밋(`dfca006`)** 이라 내려받을 것이 없었고, `git status`에 뜨던 수정 2건(`app/sw.js`, `docs/improve-plan_model-first_20260609.md`)은 내용 변경이 아니라 **CRLF↔LF 줄바꿈 차이**뿐이었음(`git diff --ignore-cr-at-eol --stat` 출력 공백으로 확인). Windows 마운트를 통해 파일이 열리며 CRLF로 바뀐 것이 원인.
+
+- **`.gitattributes` 신규 추가**: `* text=auto eol=lf` (저장소는 항상 LF 저장/체크아웃) + `*.bat`/`*.cmd`/`*.ps1`은 `eol=crlf`(Windows 스크립트는 CRLF 유지) + `*.png/jpg/ico/webp/xlsx/xls/pdf/zip`은 `binary`. → 워킹트리가 CRLF여도 git이 정규화 후 비교하므로 **가짜 diff 자체가 사라짐**. 적용 직후 `git status`에서 위 2개 파일 소멸 확인.
+- **`sync_pull.bat` 로직 교체**: 기존에는 `git checkout -- app/sw.js`로 **파일명을 하드코딩**해 되돌렸음(대상이 늘면 매번 수정 필요, 실제 작업분도 날릴 위험). 이제 `git diff --ignore-cr-at-eol --quiet`(+`--cached`)로 판정해 **줄바꿈 차이만이면 `git checkout -- .`, 실제 내용 변경이 있으면 아무것도 버리지 않고 경고 후 중단**. 단계 4/4 → 5/5.
+- ⚠️ **`--name-only`는 `--ignore-cr-at-eol`을 무시함**(git 2.34 실측: CRLF-only 파일도 그대로 나열). 판정에는 반드시 `--quiet`(또는 `--stat`/`--numstat`)를 쓸 것. 이 함정은 `sync_pull.bat` 주석에도 기록해 둠.
+- **앱 무영향**: `app/` 하위 코드·`sw.js` `CACHE_VERSION`(`20260628`) 전부 **무변경**. 재배포 불필요.
+- **검증**: 파일 NUL 0바이트·`sync_pull.bat` CRLF 56줄·`goto`↔라벨 전부 해소 확인. `git check-attr text eol` 로 `app/sw.js`→`auto/lf`, `sync_pull.bat`→`set/crlf`, `icon-192.png`→`text unset` 확인. 적용 후 `git status`에 `sync_pull.bat`(실제 수정)과 `.gitattributes`(신규)만 남음.
+- ⚠️ **미커밋 상태**: 이 세션의 로컬 실행 도구는 네트워크가 막혀 있어(프록시 403) `git fetch`/`push` 불가. 원격 대조는 클라우드 측 `git ls-remote`로 수행. **`.gitattributes`와 `sync_pull.bat` 커밋·푸시는 Windows에서 `push.bat` 실행 필요.**
+- 🔴 **`push.bat` 경로 오류 발견** (→ **v19에서 수정 완료**): 4번째 줄이 `cd /d "C:\Users\redru\Desktop\01 Work_ai\03 registration_app"` 로 **실제 경로(`C:\Users\VGPT\Desktop\03 ai_wok\03 registration_app`)와 불일치**. 존재하지 않는 경로라 `cd`가 실패하고 엉뚱한 폴더에서 push가 시도됨. `cd /d "%~dp0"`(다른 스크립트와 동일 방식)로 교체 권장.
+
 ### v17 변경 (2026-06-28, TITLE flex 위치 수정 + GitHub 동기화)
 
 수출(xlsx) 결과에서 TITLE의 flex가 `A / Lefty`, `S / 7pcs / Lefty`, `Uni / 7pcs`처럼 중간에 끼어 "섞여" 보이는 문제. 원인은 `regenerateFields()`의 `titleParts` 조립 순서가 **flex → pcs → Women → Lefty**로, flex가 먼저 push되던 것. 문서(이 파일·data_analysis.md)의 TITLE 형식 문자열도 `{Flex} [/ Women] [/ Lefty]`로 flex가 앞에 오게 적혀 있어 코드와 함께 옛 규칙을 따르고 있었음(단, data_analysis.md 예시 120~121줄은 이미 flex-last로 자기모순 상태였음).
@@ -208,3 +260,12 @@ Cowork **Edit 도구로 index.html/match.js/sw.js/CLAUDE.md 수정 시 파일 �
 - **(v15) SHAFT 드롭다운이 비었을 때**: `getAllShaftCandidates()`는 `MATCH.shaft`(shaft_index.json) 로드 여부에 의존 → JSON 로드 실패 시 빈 목록. 콘솔에서 `MATCH.loaded`/`MATCH.shaft` 확인.
 - **(v15) VGT/eBay 조회 쿼리 변경 시**: 검색어는 `buildMarketQuery()`(`f-brand`+`f-type`+`f-model`, 순서 **BRAND TYPE MODEL**)에서 단일 생성. 순서/항목 변경은 이 함수 한 곳만 수정하면 VGT·eBay 동시 반영. TITLE 필드(`f-title`)와는 독립.
 - **(v15 사고) sw.js 절단 재발**: 작업본 sw.js가 53줄에서 `.catch` 폴백 누락된 채 잘려 있었음. `node --check`(CRLF는 LF 변환 후)로 매 배포 전 검증, 손상 시 `git show HEAD:app/sw.js` 복원 후 버전만 치환.
+- **(v18) `git status`에 안 고친 파일이 뜰 때**: 십중팔구 CRLF 노이즈. `git diff --ignore-cr-at-eol --stat` 이 **비어 있으면 내용은 동일**하므로 `sync_pull.bat` 실행으로 정리. `.gitattributes` 가 지워지면 재발하므로 삭제 금지.
+- **(v18) 줄바꿈 정책 변경 시**: `.gitattributes` 한 곳만 수정. `.bat/.cmd/.ps1`을 `eol=lf`로 바꾸면 Windows에서 `goto`/라벨이 깨질 수 있으니 CRLF 유지할 것.
+- **(v18) 원격 최신 여부 확인법**: 마운트 쪽 `git fetch`는 프록시 403으로 불가. 커밋 해시 대조는 네트워크가 되는 환경에서 `git ls-remote <repo-url>` 로 하고, 실제 pull 은 Windows에서 `sync_pull.bat` 실행.
+- **(v19) 폰 누적분이 자동완성에만 있고 DB에 없을 때**: 정상. 방법 A(런타임 병합)는 그 기기 `localStorage` 한정이라 캐시 삭제/기기 변경 시 사라짐. 영구 반영은 방법 B(`Export DB` → `data/incoming/` → `py build_match_tree.py` → `push.bat`).
+- **(v19) 흡수했는데 후보 순위가 안 바뀔 때**: ① `push.bat` 미실행(JSON이 GitHub에 안 올라감) ② 폰 SW 캐시 — `CACHE_VERSION` 승급 여부 확인 ③ 흡수 건수가 기준 7,120건 대비 작아 순위 변동이 안 보이는 것일 수 있음(`match_tree.json`에서 직접 count 확인).
+- **(v19) 내보내기 열 구성 변경 시**: 기준 DB용은 `exportMatchXLSX()`/`MATCH_HEADERS`(export.js), 판매용은 `exportXLSX()`. **둘은 용도가 다르므로 통합하지 말 것.** 기준 DB용 열 순서/시트명(`final`)을 바꾸면 `build_match_tree.py`의 `norm_row()`도 같이 고쳐야 함.
+- **(v19) 배치 스크립트에 절대경로 쓰지 말 것**: 반드시 `cd /d "%~dp0"`. 폴더명·사용자명이 바뀌어도 따라오고, `cd` 실패가 조용히 넘어가는 사고를 막는다. 새 스크립트를 만들 때도 루트 검증 가드(`if not exist ".git"` 등)를 같이 넣을 것.
+- **(v19 사고) `push.bat` 이 Done 인데 GitHub에 반영이 안 됐을 때**: `.git/index.lock` 잔존으로 커밋이 조용히 실패한 경우. 현재 push.bat 은 Step 0 에서 자동 삭제하고 커밋 실패 시 중단하므로 **다시 실행하면 해결**. 반영 확인은 메시지가 아니라 `git log --oneline -1` 해시로 할 것.
+- **(v19) Cowork 세션에서 마운트 repo에 git 명령 금지**: 읽기(`git status`)만 해도 `.git/index.lock` 이 남고 마운트에서는 지울 수 없다. 원격 커밋 대조가 필요하면 네트워크 되는 쪽에서 `git ls-remote` 를 쓸 것.

@@ -1,0 +1,25 @@
+# ============================================================
+#  Line-ending policy for golf-registration-app
+#  Repository always stores LF. Prevents the CRLF/LF diff noise
+#  that appears when the working tree is touched through a
+#  Windows mount or an editor that rewrites line endings.
+# ============================================================
+
+# Default: auto-detect text, store LF, check out LF.
+* text=auto eol=lf
+
+# Windows scripts must keep CRLF in the working tree.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets - never convert, never diff as text.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.ico  binary
+*.webp binary
+*.xlsx binary
+*.xls  binary
+*.pdf  binary
+*.zip  binary

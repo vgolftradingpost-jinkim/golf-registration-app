@@ -1,6 +1,15 @@
 @echo off
 title Golf Club App Server
-cd /d "C:\Users\redru\Desktop\01 Work_ai\03 registration_app"
+cd /d "%~dp0"
+
+REM 스크립트가 놓인 폴더 = 프로젝트 루트 (경로 하드코딩 금지 — v19)
+if not exist "app\index.html" (
+    echo.
+    echo   [!] app\index.html not found in "%CD%" - aborting.
+    echo.
+    pause
+    exit /b 1
+)
 
 echo.
 echo  ================================================

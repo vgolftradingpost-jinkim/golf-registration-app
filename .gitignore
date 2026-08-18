@@ -16,3 +16,9 @@ api/*token*.txt
 api/*token*.TXT
 *secret*
 *.pem
+
+# 매칭 DB 갱신 작업 산출물 (v19) — 로컬 전용, 커밋 불필요
+# incoming/ 은 폰에서 내려받은 원본과 처리 완료본(done/), backup/ 은 마스터 자동 백업
+data/incoming/*
+!data/incoming/README.txt
+data/backup/
