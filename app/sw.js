@@ -1,5 +1,5 @@
 // 앱 코드 변경 시 버전 번호를 올려주세요 (캐시 자동 갱신)
-const CACHE_VERSION = '20260817';
+const CACHE_VERSION = '20260817-1811';
 const CACHE_NAME = `golf-reg-${CACHE_VERSION}`;
 const ASSETS = [
   './',

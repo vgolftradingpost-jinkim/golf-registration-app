@@ -17,8 +17,10 @@ api/*token*.TXT
 *secret*
 *.pem
 
-# 매칭 DB 갱신 작업 산출물 (v19) — 로컬 전용, 커밋 불필요
-# incoming/ 은 폰에서 내려받은 원본과 처리 완료본(done/), backup/ 은 마스터 자동 백업
+# 매칭 DB 갱신 작업 산출물 (v20) — 로컬 전용, 커밋 불필요
+# incoming/ 은 월 1회 수작업 반입분과 처리 완료본(done/), backup/ 은 마스터 자동 백업
+# 단, 양식(_template.xlsx)과 안내(README.txt)는 저장소에 유지
 data/incoming/*
 !data/incoming/README.txt
+!data/incoming/_template.xlsx
 data/backup/

@@ -231,7 +231,7 @@ app/data/shaft_index.json  (SHAFT 폴백용)
 - 정확하고 깔끔하나 **PC에서 수동**(모바일 불가)
 - 방법 A로 누적된 항목을 가끔 엑셀에 흡수시켜 기준 데이터를 정제하는 용도
 
-**(v19, 2026-08-18) 실행 경로 개통 — 수동 복붙 불필요**
+**(v19, 2026-08-18) 실행 경로 개통 — 수동 복붙 불필요** ⚠️ *v20에서 앱 부분 철회 — 아래 v20 항목 참조*
 
 당초 계획에는 "엑셀에 신규 데이터 추가"의 *구체적 수단*이 비어 있었음. 실제로는 폰 누적분을 꺼낼 방법이 없었는데, 원인은 `exportXLSX()`에 **SHAFT 열이 없어서** 빌드 스크립트가 요구하는 4열을 만들 수 없었던 것. v19에서 다음을 추가해 경로를 뚫음.
 
@@ -246,6 +246,25 @@ app/data/shaft_index.json  (SHAFT 폴백용)
 폰 List → [Export DB] → PC의 data/incoming/ → py build_match_tree.py → push.bat → 폰 새로고침
 ```
 
+**(v20, 2026-08-18) 방침 변경 — 폰 내보내기 철회, 월 1회 수작업으로 확정**
+
+v19 방식은 사용자의 실제 흐름(`Export XLSX` → `Clear All`)에 `Export DB` 를 매번 끼워 넣어야 학습분이 남는 구조였다. 버튼 하나를 잊으면 조용히 유실되므로, **명시적인 월 1회 수작업**으로 바꾸는 편이 안전하다고 판단해 앱 변경을 전량 되돌렸다.
+
+| 구성 | v19 | v20 (현행) |
+|------|-----|-----------|
+| 반입 수단 | 앱 `Export DB` 버튼 | `_template.xlsx` 수작업 작성 |
+| 중복 방지 | `SRC_NO`(등록 CODE) | 파일 내용 **sha256** 대장 |
+| 마스터 열 | 5열(+SRC_NO) | **4열 유지** |
+| 양식 보호 | — | `_` 접두 파일 스킵 |
+
+```
+_template.xlsx 복사 → 2026-09.xlsx 작성 → data/incoming/
+  → py build_match_tree.py --dry-run → py build_match_tree.py → push.bat
+```
+
+- `_template.xlsx` 는 `final`(헤더만 + TYPE 드롭다운) / `작성요령`(절차·예시) 2시트. **예시를 `final` 에 두지 않는 이유**: 지우는 걸 잊으면 그대로 흡수돼 DB가 오염된다.
+- 방법 A(런타임 자동 학습)는 그대로 살아 있다. 다만 그 기기 한정이고 `Clear All` 로 사라지므로, **영구 반영 경로는 이 수작업 절차 하나뿐**이다.
+
 - **SHAFT 합성 규칙**: 기준 엑셀 SHAFT는 `TaylorMade REAX` 같은 브랜드+모델 합본 단일 문자열. 앱의 `shaftBrand`+`shaftModel`을 합치되, `shaftModel`이 이미 브랜드로 시작하면 접두 중복을 피함.
 - **중복 "조합"은 남긴다**: 빈도(count)가 후보 순위에 직결되므로 같은 BRAND+MODEL 반복 등록은 제거 대상이 아님. 제거하는 것은 *같은 SRC_NO의 재흡수*뿐.
 - ⚠️ 실제 흡수는 **Windows에서** 실행할 것. 샌드박스 마운트는 rename 불가라 `done/` 이동이 실패함(`--dry-run`은 안전).
@@ -258,7 +277,7 @@ app/data/shaft_index.json  (SHAFT 폴백용)
 ### 권장 운영 조합
 ```
 평소:   방법 A (자동 학습) — 손 안 대도 폰에 누적
-가끔:   방법 B (분기 1회) — [Export DB] → incoming/ → 재빌드 → push  (v19부터 자동)
+매월:   방법 B (월 1회) — _template.xlsx 작성 → incoming/ → 재빌드 → push  (v20 확정)
 장기:   방법 C — Shopify 동기화 검토
 ```
 

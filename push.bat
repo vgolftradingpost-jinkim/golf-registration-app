@@ -30,11 +30,32 @@ if exist ".git\index.lock" (
 )
 if exist ".git\index.lock.del" del /f /q ".git\index.lock.del"
 
-REM ---- Step 1: sw.js CACHE_VERSION 자동 갱신 (오늘 날짜) ----
-REM    YYYYMMDD 포맷으로 치환 (예: 20260530)
-for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"') do set TODAY=%%i
-echo   [Cache] sw.js CACHE_VERSION -^> !TODAY!
-powershell -NoProfile -Command "(Get-Content app\sw.js) -replace \"const CACHE_VERSION = '.*?';\", \"const CACHE_VERSION = '!TODAY!';\" | Set-Content app\sw.js"
+REM ---- Step 1: sw.js CACHE_VERSION 자동 갱신 (날짜+시각) ----
+REM    YYYYMMDD-HHMM 포맷 (예: 20260817-1435).
+REM    날짜만 쓰면 같은 날 두 번째 푸시에서 버전 문자열이 같아져 폰이 새 코드를
+REM    안 받는다(과거 20260604b/c 처럼 손으로 접미를 붙이던 원인). 분 단위까지
+REM    넣어 매 푸시마다 반드시 새 버전이 되게 한다.
+for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmm"') do set STAMP=%%i
+if "!STAMP!"=="" (
+    echo.
+    echo   [!] Failed to read date from PowerShell - aborting.
+    echo.
+    pause
+    exit /b 1
+)
+echo   [Cache] sw.js CACHE_VERSION -^> !STAMP!
+powershell -NoProfile -Command "(Get-Content app\sw.js) -replace \"const CACHE_VERSION = '.*?';\", \"const CACHE_VERSION = '!STAMP!';\" | Set-Content app\sw.js"
+
+REM 치환이 실제로 먹었는지 확인 — 실패한 채 커밋되면 폰이 옛 캐시를 계속 쓴다.
+findstr /c:"const CACHE_VERSION = '!STAMP!';" app\sw.js >nul
+if errorlevel 1 (
+    echo.
+    echo   [!] sw.js CACHE_VERSION update FAILED - aborting before commit.
+    echo   [!] Check app\sw.js by hand.
+    echo.
+    pause
+    exit /b 1
+)
 echo.
 
 REM ---- Step 2: 변경 사항 확인 ----

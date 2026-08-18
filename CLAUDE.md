@@ -66,7 +66,9 @@ Hybrid Women: 2H=19.5, 3H=21.5, 4H=24.0, 5H=26.5, 6H=29.5, 7H=32.0
 
 ---
 
-## 현재 상태 (v19, 2026-08-18) — 폰 누적분 → 기준 DB 흡수 경로 개통: `Export DB` 버튼 + `incoming/` 자동 병합 (아래 v19 변경 참조)
+## 현재 상태 (v20, 2026-08-18) — DB 갱신을 **월 1회 수작업**으로 전환: `Export DB` 버튼 철회, `incoming/` + 양식 파일 유지 (아래 v20 변경 참조)
+
+## 이전 상태 (v19, 2026-08-18) — 폰 누적분 → 기준 DB 흡수 경로 개통 (⚠️ **앱 부분은 v20에서 철회**)
 
 ## 이전 상태 (v18, 2026-08-17) — 저장소 정비: `.gitattributes`로 CRLF 노이즈 차단 + `sync_pull.bat` 안전화 (앱 코드 무변경)
 
@@ -152,7 +154,34 @@ build_match_tree.py   ← (신규) 엑셀→JSON 변환
 data/00 matching data.xlsx ← (신규) 매칭 원본 7,120건
 ```
 
+### v20 변경 (2026-08-18, DB 갱신을 월 1회 수작업으로 전환 — v19 앱 변경 철회)
+
+v19에서 뚫은 "폰 내보내기 → 흡수" 경로를 실사용 검토 끝에 **철회**. 이유는 운영 실태와 안 맞았기 때문. 사용자의 평소 흐름은 `Export XLSX`(판매용) → `Clear All` 인데, 여기에 `Export DB` 를 매번 끼워 넣어야 학습분이 보존되는 구조였음. 버튼 하나를 빠뜨리면 조용히 유실되는 설계라 **"매월 한 번 손으로 채워 넣는" 명시적 절차**가 더 안전하다고 판단.
+
+- **철회(앱)**: `app/export.js` 의 v19 블록 전량 삭제(`shaftFull`/`matchRows`/`MATCH_HEADERS`/`exportMatchXLSX`/`exportMatchCSV`) → **87줄 원상 복구**. `app/index.html` 의 `Export DB (자동완성 갱신용)` 버튼과 주석 2곳 원복 → **1797줄 원상 복구**. 기존 `Export XLSX`/`CSV` 는 원래부터 무변경.
+- **유지(PC)**: `data/incoming/` → `build_match_tree.py` → JSON 재생성 → `push.bat` 파이프라인은 그대로. 반입 수단만 바뀜.
+- **중복 방지 기준 교체 — `SRC_NO` → 파일 내용 해시**: v19 는 앱이 찍어주던 등록 CODE 로 재흡수를 막았는데, 수작업 파일에는 그런 ID가 없다. 대신 파일 **sha256** 을 `data/incoming/done/_processed.json` 대장에 기록해 판별. 같은 파일을 두 번 넣으면 "이미 반영된 파일 → 건너뜀" 으로 처리. 마스터 E열(`SRC_NO`)도 폐지 → **4열(TYPE/BRAND/MODEL/SHAFT) 유지**.
+- **`_` 접두 파일 건너뛰기**: `data/incoming/_template.xlsx` 가 실수로 흡수되지 않도록 파일명이 `_` 로 시작하면 스킵(`~$` 엑셀 임시파일도 동일).
+- **`data/incoming/_template.xlsx` 신규**: 시트 2개 — `final`(헤더만, A열 TYPE 드롭다운 검증 7종) + `작성요령`(절차·규칙·예시 6행). **예시를 별도 시트에 둔 이유**: `final` 에 예시를 넣으면 지우는 걸 잊었을 때 그대로 흡수돼 DB가 오염된다. 빌드는 `final` 시트만 읽는다.
+- **정보성 경고 추가**: 반입 행 중 마스터에 이미 있는 조합이 몇 행인지 표시(`그중 N행은 마스터에 이미 있는 조합 — 빈도로 반영됨`). 차단하지는 않는다 — 빈도는 후보 순위의 신호이므로.
+- **`.gitignore`**: `!data/incoming/_template.xlsx` 예외 추가(양식과 README 는 저장소에 유지, 실제 반입분·백업은 로컬 전용).
+- **검증**: 실데이터 7,120건 사본으로 ① 템플릿만 있을 때 흡수 0 ② 수작업 파일 5행 중 유효 4행 흡수(BRAND 누락 행 무시) ③ 소문자 `wood`→`Wood` 정규화 ④ 빈 SHAFT 행은 tree 에는 들어가고 shaft 인덱스에서만 제외 ⑤ **같은 파일 재투입 시 대장으로 차단** ⑥ 1행 추가한 다른 파일은 정상 흡수 ⑦ 빈도 정합성 — Qi35 2+1+1=4, Vokey SM10 24+1=25, PXG 0811 X+ 1+1+1=3 전부 일치(이중 집계 없음). 실기기 `--dry-run` 으로 마스터 7,120건 정상 판독 확인.
+
+#### 운영 순서 (v20 확정)
+```
+data/incoming/_template.xlsx 복사 → 2026-09.xlsx 등으로 저장
+  → final 시트에 신규 TYPE/BRAND/MODEL/SHAFT 手입력
+  → data/incoming/ 에 두고
+       py build_match_tree.py --dry-run     (확인)
+       py build_match_tree.py               (반영)
+  → push.bat
+  → 폰 앱 완전 종료 후 재실행
+```
+주기는 월 1회. 폰 등록분(방법 A)은 그 기기 안에서만 후보로 뜨고 `Clear All` 시 사라진다 — 이제 **영구 반영 경로는 이 수작업 절차 하나뿐**이다.
+
 ### v19 변경 (2026-08-18, 방법 B 실행 경로 개통 — 폰 누적분을 기준 DB로 흡수)
+
+> ⚠️ **이 절의 앱 변경(`Export DB` 버튼·`exportMatchXLSX`)은 v20에서 전량 철회됨.** `incoming/` + `build_match_tree.py` 파이프라인만 살아 있고, 반입 수단이 "폰 내보내기" → "월 1회 수작업"으로 바뀌었다. 아래 내용은 경위 기록으로만 읽을 것.
 
 폰에 쌓인 등록 데이터(방법 A, `localStorage.golf_entries`)를 기준 DB로 흡수하려는 요청. 확인해 보니 **경로 자체가 막혀 있었음**: `exportXLSX()` 컬럼이 `NO/TYPE/BRAND/MODEL/TITLE/SPEC/PRICE/COST/GENDER/HANDED/GRIP/DATE` 로 **SHAFT가 없어서**, `build_match_tree.py`가 요구하는 TYPE/BRAND/MODEL/**SHAFT** 4열을 만들 수 없었음(= `shaft_index.json` 학습분 전량 유실). `buildEntry()`에는 `shaftBrand`/`shaftModel`이 이미 저장되고 있어 데이터는 있었고 **내보내기만 빠져 있던 상태**.
 
@@ -163,7 +192,7 @@ data/00 matching data.xlsx ← (신규) 매칭 원본 7,120건
 - **중복 재흡수 방지 = `SRC_NO`(등록 CODE)**: 마스터 E열에 출처 CODE를 남기고, 이미 있는 SRC_NO는 건너뜀. **같은 파일을 두 번 넣어도 중복 집계되지 않음.** ⚠️ 단, 빈도(count)가 후보 순위에 직결되므로 **중복 "조합"(같은 BRAND+MODEL 반복 등록)은 일부러 제거하지 않음** — 그건 노이즈가 아니라 신호임.
 - **`.gitignore`**: `data/incoming/*`(단 `README.txt` 예외) + `data/backup/` 제외. 반입 원본·백업은 로컬 전용.
 - **`data/incoming/README.txt` 신규**: 폴더에 들어온 사람이 바로 따라 할 수 있는 4단계 운영 순서.
-- **SW**: `CACHE_VERSION` `20260628` → **`20260818`** (export.js·index.html 변경 반영). `export.js`는 이미 ASSETS에 있어 목록 변경 불필요.
+- **SW**: `CACHE_VERSION` `20260628` → 배포 시 `push.bat` 이 자동 갱신(실제 반영값 **`20260817`** — 작업 세션은 UTC 기준 8/18이었으나 push.bat 은 PC 로컬 날짜(America/Vancouver)를 쓰므로 8/17로 기록됨. SW 는 문자열 일치 비교라 순서 역전은 무해). `export.js`는 이미 ASSETS에 있어 목록 변경 불필요.
 - **검증**: 마스터 실데이터 7,120건 사본으로 샌드박스 전 구간 통과 — ① xlsx 5행 + csv 1행 흡수 → 7,126건, JSON 재생성(byModel 2,418→2,419, byBrand 181→182) ② **같은 파일 재투입 시 신규 0행 / 중복 6행 건너뜀**(멱등성) ③ csv BOM + 소문자 type(`wood`→`Wood`) 정규화 ④ 백업·done 이동·충돌 리네임 ⑤ `shaftFull` 5개 케이스 Node 검증(빈 브랜드/접두중복/정상결합/샤프트없음/브랜드누락 제외). 실기기 `--dry-run`으로 실제 마스터 정상 판독(7,120건, 부작용 0) 확인.
 - ⚠️ **샌드박스에서 실행 금지**: 마운트 FS는 rename/unlink 불가라 `shutil.move`(done 이동)가 실패함. `build_match_tree.py`의 실제 흡수는 **반드시 Windows에서** 실행할 것(`--dry-run`은 마운트에서도 안전).
 
@@ -178,6 +207,15 @@ data/00 matching data.xlsx ← (신규) 매칭 원본 7,120건
 
 - **대응**: `push.bat` 에 **Step 0(스테일 `index.lock` 자동 삭제)** 추가 + `git add`/`git commit` 각각 `if errorlevel 1 goto COMMIT_FAIL` 로 **즉시 중단**. push 실패는 `:PUSH_FAIL` 로 분리. 성공 시 `git log --oneline -1` 과 잔여 `git status -s` 를 함께 출력해 **실제 반영 여부를 눈으로 확인**하게 함. (`commit.bat`·`sync_pull.bat` 은 이미 잠금 삭제 단계 보유)
 - ⚠️ **교훈**: 마운트에서 git **읽기 명령(`git status` 포함)** 도 잠금을 남긴다. 세션에서 로컬 repo 상태를 볼 일이 있으면 그 뒤 Windows 쪽 첫 git 작업이 막힐 수 있음을 전제할 것. 배포는 항상 Windows에서, 그리고 **`Done!` 이 아니라 `git log` 해시로 확인**할 것.
+
+#### `CACHE_VERSION` 형식 변경 (2026-08-18) — 같은 날 재배포 시 캐시 미갱신 차단
+
+`push.bat` 의 자동 갱신이 `Get-Date -Format yyyyMMdd`(날짜만)라, **같은 날 두 번째 푸시는 버전 문자열이 동일**해져 SW 가 캐시를 새것으로 인식하지 못했다. v14→v15 때 손으로 `20260604b`/`20260604c` 접미를 붙였던 게 바로 이 증상의 임시 대처였음.
+
+- **형식**: `yyyyMMdd` → **`yyyyMMdd-HHmm`** (예: `20260817-1435`). 분 단위까지 들어가 매 푸시마다 새 버전이 보장됨. 변수명도 `TODAY` → `STAMP`.
+- **가드 2종 추가**: ① PowerShell 날짜 취득 실패 시(`STAMP` 공백) 중단 ② 치환 후 `findstr` 로 `sw.js` 에 새 버전이 실제로 박혔는지 확인, 실패면 **커밋 전에** 중단. 치환만 조용히 실패하면 폰이 옛 캐시를 계속 쓰게 되므로.
+- **`Get-Content`/`Set-Content` 방식은 유지**: PS 5.1 기본 인코딩이 ANSI라 한글 주석이 깨질 수 있는 구조지만, 실제 푸시 결과물(`app/sw.js` 56줄 UTF-8, 한글 정상)을 GitHub 클론으로 대조해 **현 PC 환경에서는 무해함을 확인**. `sw.js` 절단 이력이 있는 파일이라 검증되지 않은 개선(`[IO.File]::WriteAllText` 등)으로 바꾸지 않았다. 인코딩이 깨지는 날이 오면 그때 교체할 것.
+- ※ `Set-Content` 가 LF→CRLF 로 바꾸므로 커밋 시 `CRLF will be replaced by LF` 경고가 뜬다. **`.gitattributes`(v18)가 정규화해 저장소는 LF 유지** — 정상 동작이며 무시해도 된다.
 
 #### 운영 순서 (방법 B, v19 기준)
 ```
@@ -263,9 +301,12 @@ Cowork **Edit 도구로 index.html/match.js/sw.js/CLAUDE.md 수정 시 파일 �
 - **(v18) `git status`에 안 고친 파일이 뜰 때**: 십중팔구 CRLF 노이즈. `git diff --ignore-cr-at-eol --stat` 이 **비어 있으면 내용은 동일**하므로 `sync_pull.bat` 실행으로 정리. `.gitattributes` 가 지워지면 재발하므로 삭제 금지.
 - **(v18) 줄바꿈 정책 변경 시**: `.gitattributes` 한 곳만 수정. `.bat/.cmd/.ps1`을 `eol=lf`로 바꾸면 Windows에서 `goto`/라벨이 깨질 수 있으니 CRLF 유지할 것.
 - **(v18) 원격 최신 여부 확인법**: 마운트 쪽 `git fetch`는 프록시 403으로 불가. 커밋 해시 대조는 네트워크가 되는 환경에서 `git ls-remote <repo-url>` 로 하고, 실제 pull 은 Windows에서 `sync_pull.bat` 실행.
-- **(v19) 폰 누적분이 자동완성에만 있고 DB에 없을 때**: 정상. 방법 A(런타임 병합)는 그 기기 `localStorage` 한정이라 캐시 삭제/기기 변경 시 사라짐. 영구 반영은 방법 B(`Export DB` → `data/incoming/` → `py build_match_tree.py` → `push.bat`).
-- **(v19) 흡수했는데 후보 순위가 안 바뀔 때**: ① `push.bat` 미실행(JSON이 GitHub에 안 올라감) ② 폰 SW 캐시 — `CACHE_VERSION` 승급 여부 확인 ③ 흡수 건수가 기준 7,120건 대비 작아 순위 변동이 안 보이는 것일 수 있음(`match_tree.json`에서 직접 count 확인).
-- **(v19) 내보내기 열 구성 변경 시**: 기준 DB용은 `exportMatchXLSX()`/`MATCH_HEADERS`(export.js), 판매용은 `exportXLSX()`. **둘은 용도가 다르므로 통합하지 말 것.** 기준 DB용 열 순서/시트명(`final`)을 바꾸면 `build_match_tree.py`의 `norm_row()`도 같이 고쳐야 함.
+- **(v20) 폰 누적분이 자동완성에만 있고 DB에 없을 때**: 정상. 방법 A(런타임 병합)는 그 기기 `localStorage` 한정이라 **`Clear All`·캐시 삭제·기기 변경 시 사라짐**. 영구 반영은 월 1회 수작업(`_template.xlsx` 복사 → 작성 → `data/incoming/` → `py build_match_tree.py` → `push.bat`).
+- **(v20) 흡수했는데 후보 순위가 안 바뀔 때**: ① `push.bat` 미실행(JSON이 GitHub에 안 올라감) ② 폰 SW 캐시 — `CACHE_VERSION` 승급 여부 확인 ③ 흡수 건수가 기준 7,120건 대비 작아 순위 변동이 안 보이는 것일 수 있음(`match_tree.json`에서 직접 count 확인).
+- **(v20) 반입 양식을 바꿀 때**: 열 순서/시트명(`final`)을 바꾸면 `build_match_tree.py` 의 `norm_row()`·`read_incoming_xlsx()` 도 같이 고칠 것. `_template.xlsx` 의 `final` 시트에는 **예시 행을 절대 넣지 말 것**(지우는 걸 잊으면 그대로 흡수됨 — 예시는 `작성요령` 시트에).
 - **(v19) 배치 스크립트에 절대경로 쓰지 말 것**: 반드시 `cd /d "%~dp0"`. 폴더명·사용자명이 바뀌어도 따라오고, `cd` 실패가 조용히 넘어가는 사고를 막는다. 새 스크립트를 만들 때도 루트 검증 가드(`if not exist ".git"` 등)를 같이 넣을 것.
 - **(v19 사고) `push.bat` 이 Done 인데 GitHub에 반영이 안 됐을 때**: `.git/index.lock` 잔존으로 커밋이 조용히 실패한 경우. 현재 push.bat 은 Step 0 에서 자동 삭제하고 커밋 실패 시 중단하므로 **다시 실행하면 해결**. 반영 확인은 메시지가 아니라 `git log --oneline -1` 해시로 할 것.
 - **(v19) Cowork 세션에서 마운트 repo에 git 명령 금지**: 읽기(`git status`)만 해도 `.git/index.lock` 이 남고 마운트에서는 지울 수 없다. 원격 커밋 대조가 필요하면 네트워크 되는 쪽에서 `git ls-remote` 를 쓸 것.
+- **(v19) 앱을 고쳤는데 폰에 반영 안 될 때**: `push.bat` 이 `CACHE_VERSION` 을 `yyyyMMdd-HHmm` 으로 갱신하므로 정상이면 매 푸시마다 값이 바뀐다. GitHub의 `app/sw.js` 에서 값이 직전 배포와 같다면 치환 실패 — push.bat 이 findstr 가드로 잡아 커밋 전에 멈춘다. 그래도 안 되면 폰에서 PWA 완전 종료 후 재실행(SW 갱신은 탭 전체가 닫혀야 활성화됨).
+- **(v20) 반입 파일이 흡수되지 않을 때**: ① 파일명이 `_` 로 시작하는지(양식으로 간주해 스킵) ② `done/_processed.json` 에 같은 해시가 있는지(이미 반영된 파일) ③ 데이터가 `final` 시트에 있는지 ④ TYPE/BRAND/MODEL 중 빈 칸이 있는 행은 통째로 무시됨.
+- **(v20) 잘못 흡수했을 때 되돌리기**: `data/backup/` 의 직전 타임스탬프 파일을 `data/00 matching data.xlsx` 로 되돌린 뒤 `done/_processed.json` 에서 해당 해시 항목을 지우고 재실행.
