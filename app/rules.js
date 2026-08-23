@@ -74,6 +74,50 @@ function normalizeBrand(raw) {
 }
 
 /* ================================================================
+   TITLE FLEX 표기 규칙 — 단일 소스 (v21, 2026-08-22)
+   1) Women(여성 클럽)이면 flex 'L'을 TITLE에 표기하지 않는다
+      (Women 태그로 Ladies 사양이 이미 드러나므로 중복 표기)
+   2) flex 'A'는 TITLE에 'A(Senior)'로 표기한다
+      (R/S/R(S)/X/Uni 등 다른 flex는 기존 표기 유지)
+   3) '-'(N/A)와 'W'(Wedge-flex)는 기존대로 항상 생략
+   ⚠ TITLE의 flex 표기를 바꿀 때는 반드시 이 두 함수만 수정할 것.
+     index.html(regenerateFields)·export.js가 모두 여기를 참조한다.
+   ================================================================ */
+const TITLE_FLEX_OMIT  = ['', '-', 'W'];            // 항상 생략하는 flex
+const TITLE_FLEX_LABEL = { 'A': 'A(Senior)' };      // 특수 표기 flex
+/* TITLE 앞 2개 세그먼트({Brand} {TYPE} / {Model})는 태그 판정에서 제외 */
+const TITLE_TAG_START  = 2;
+
+/* flex 코드 → TITLE에 넣을 문자열 (빈 문자열이면 표기 생략) */
+function titleFlexLabel(flex, gender) {
+  const f = String(flex ?? '').trim();
+  if (TITLE_FLEX_OMIT.includes(f)) return '';
+  if (f === 'L' && gender === 'Women') return '';   // 규칙 1
+  return TITLE_FLEX_LABEL[f] || f;                  // 규칙 2 / 그 외 원본
+}
+
+/* 이미 만들어진 TITLE 문자열을 현재 규칙으로 교정
+   - 구 규칙으로 저장된 항목·수기 편집분을 Export 시점에 맞춰 주기 위함
+   - ' / ' 세그먼트 단위로만 판정 → 모델명·도수 등에는 영향 없음
+   - Condition 접미사(' * *CHECK' 등)는 잘라 두고 원형 그대로 복원 */
+function normalizeTitleTags(title, gender) {
+  const raw = String(title ?? '');
+  if (!raw) return raw;
+  const cut  = raw.indexOf(' * ');                  // condition 접미사 분리
+  const body = cut >= 0 ? raw.slice(0, cut) : raw;
+  const tail = cut >= 0 ? raw.slice(cut) : '';
+  const parts = body.split(' / ');
+  const fixed = [];
+  parts.forEach((seg, i) => {
+    const base = seg.trim();
+    if (i < TITLE_TAG_START) { fixed.push(seg); return; }
+    if (base === 'L' && gender === 'Women') return;             // 규칙 1
+    fixed.push(TITLE_FLEX_LABEL[base] || seg);                  // 규칙 2
+  });
+  return fixed.join(' / ') + tail;
+}
+
+/* ================================================================
    FORM_DEFAULTS — 편집 폼 기본값
    ================================================================ */
 const FORM_DEFAULTS = {

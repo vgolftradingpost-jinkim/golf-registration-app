@@ -1411,8 +1411,10 @@ function regenerateFields() {
   if (gender === 'Women') titleParts.push('Women');
   if (handed === 'Left') titleParts.push('Lefty');
   if (putterLen) titleParts.push(putterLen); // Putter: 맨 끝에 길이 추가
-  // FLEX는 항상 TITLE 맨 뒤 (W=Wedge-flex 생략, Women+L 조합에서 L 생략)
-  if (flex && flex !== '-' && flex !== 'W' && !(flex === 'L' && gender === 'Women')) titleParts.push(flex);
+  // FLEX는 항상 TITLE 맨 뒤. 표기 규칙은 rules.js의 titleFlexLabel() 단일 소스
+  // (v21) Women+L → 생략, A → 'A(Senior)', '-'/'W' → 생략
+  const flexTag = titleFlexLabel(flex, gender);
+  if (flexTag) titleParts.push(flexTag);
   document.getElementById('f-title').value = titleParts.join(' / ');
 
   // Flex full name for spec — RULES.flexMap 참조
@@ -1757,6 +1759,9 @@ function saveEditModal() {
       e[key] = (key === 'price' || key === 'cost') ? (parseInt(el.value) || 0) : el.value;
     }
   });
+  // (v21) Gender를 바꿔도 TITLE이 재조립되지 않아 옛 표기(Women+L 등)가 남던 문제 보정
+  // 사용자가 직접 고친 문구는 유지하고 flex 태그 표기만 현재 규칙으로 교정
+  e.title = normalizeTitleTags(e.title, e.gender);
   saveToStorage();
   closeEditModal();
   renderList();

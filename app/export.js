@@ -1,9 +1,20 @@
 /* ================================================================
    export.js — CSV / XLSX 출력
    의존: app.js의 STATE, toast, escHtml(미사용), csvCell 자체 포함
+        rules.js의 normalizeTitleTags (TITLE flex 표기 규칙 단일 소스)
    외부: SheetJS (window.XLSX, CDN 또는 폴백)
    v12 (2026-05-30) 모듈 분리
+   v21 (2026-08-22) Export 시 TITLE flex 표기 정규화 추가
    ================================================================ */
+
+/* 출력용 TITLE — 현재 표기 규칙(Women+L 생략 / A→A(Senior))으로 교정.
+   구 규칙으로 저장된 항목·수기 편집분도 내보내기 시점에 맞춰진다.
+   저장 데이터(STATE.entries)는 변경하지 않는다. */
+function exportTitle(e) {
+  return (typeof normalizeTitleTags === 'function')
+    ? normalizeTitleTags(e.title, e.gender)
+    : e.title;
+}
 
 /* CSV 셀 값을 안전하게 이스케이프: 따옴표 처리 + 수식 인젝션 방어 */
 function csvCell(val) {
@@ -19,7 +30,7 @@ function exportCSV() {
   const rows = STATE.entries.map(e => [
     csvCell(e.no),
     csvCell(e.type),
-    csvCell(e.title),
+    csvCell(exportTitle(e)),
     csvCell(e.spec),
     csvCell(e.price),
     csvCell(e.cost)
@@ -53,7 +64,7 @@ function exportXLSX() {
   const aoa = [headers];
   STATE.entries.forEach(e => {
     aoa.push([
-      e.no, e.type, e.brand, e.model, e.title, e.spec,
+      e.no, e.type, e.brand, e.model, exportTitle(e), e.spec,
       e.price || 0, e.cost || 0,
       e.gender, e.handed, e.grip,
       e.timestamp ? e.timestamp.slice(0,10) : ''

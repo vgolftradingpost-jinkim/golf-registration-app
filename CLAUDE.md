@@ -46,6 +46,17 @@ Regular-flex / Stiff-flex / Stiff/Regular-flex / eXtra stiff-flex / Ladies-flex 
 - Wood/Hybrid: `TaylorMade Wood / SIM / 5W(18.5) / S`
 - Iron Set: `Callaway Iron Set / Apex / 7pcs / R`
 
+**TITLE의 Flex 표기 규칙 (v21)** — 코드 단일 소스: `app/rules.js` `titleFlexLabel()` / `normalizeTitleTags()`
+
+| 조건 | TITLE 표기 | 예시 |
+|------|-----------|------|
+| Gender=**Women** + Flex `L` | **`L` 생략** (Women 태그로 이미 Ladies 사양이 드러남) | `XXIO Driver / 12 / 11.5 / Women` |
+| Flex `A` | **`A(Senior)`** (다른 flex는 원본 유지) | `HONMA Wood / TW / 3W(15.0) / A(Senior)` |
+| Flex `-`(N/A), `W`(Wedge) | 생략 (기존과 동일) | `TaylorMade Wedge / MG4 / SW(56.0)` |
+
+> Export(CSV/XLSX)는 출력 직전 `normalizeTitleTags(e.title, e.gender)`를 거치므로
+> **구 규칙으로 저장된 항목도 내보내기 결과에는 위 규칙이 적용**된다(저장 데이터 자체는 무변경).
+
 ### SPEC 형식
 `{shaft} shaft, {weight}g, {flex-full}, [pcs,] {degrees} degrees, {gender}'s {handed}-handed`
 - Iron Set: `Stiff-flex, 7pcs(#4,5,6,7,8,9,P), Men's right-handed`
@@ -66,7 +77,9 @@ Hybrid Women: 2H=19.5, 3H=21.5, 4H=24.0, 5H=26.5, 6H=29.5, 7H=32.0
 
 ---
 
-## 현재 상태 (v20, 2026-08-18) — DB 갱신을 **월 1회 수작업**으로 전환: `Export DB` 버튼 철회, `incoming/` + 양식 파일 유지 (아래 v20 변경 참조)
+## 현재 상태 (v21, 2026-08-22) — TITLE flex 표기 규칙 정정: Women+`L` 생략 / `A` → `A(Senior)`, Export 시점 정규화 도입 (아래 v21 변경 참조)
+
+## 이전 상태 (v20, 2026-08-18) — DB 갱신을 **월 1회 수작업**으로 전환: `Export DB` 버튼 철회, `incoming/` + 양식 파일 유지 (아래 v20 변경 참조)
 
 ## 이전 상태 (v19, 2026-08-18) — 폰 누적분 → 기준 DB 흡수 경로 개통 (⚠️ **앱 부분은 v20에서 철회**)
 
@@ -153,6 +166,26 @@ app/
 build_match_tree.py   ← (신규) 엑셀→JSON 변환
 data/00 matching data.xlsx ← (신규) 매칭 원본 7,120건
 ```
+
+### v21 변경 (2026-08-22, TITLE flex 표기 규칙 정정 + Export 정규화)
+
+엑셀 Export 결과에서 ① 여성 클럽(Women)인데 `… / Women / L` 처럼 **`L`이 남아 있고**, ② Flex `A`가 `A(Senior)`가 아닌 `A`로만 나온다는 보고.
+
+**원인 규명 (회귀 아님)**
+- `git log -L 1400,1416:app/index.html` 로 추적한 결과, Women+`L` 생략 조건(`!(flex==='L' && gender==='Women')`)은 **v11 최초 커밋부터 한 번도 삭제된 적 없음**. v17은 flex 위치만 뒤로 옮겼고, 최근 커밋(`dfca006`/`bbd43f2`/`be69aae`)은 TITLE 로직 무변경. 현재 소스를 jsdom으로 재현 실행해도 `Women + L → … / Women`(정상)이었다. → **코드 회귀가 아니라 아래 경로 문제**
+- **주원인 ①** `saveEditModal()`이 TITLE을 재조립하지 않음. 목록 편집 모달에서 Gender를 Men→Women으로 바꿔도 이미 굳은 `… / L` 이 그대로 남고, Export는 그 문자열을 그대로 출력.
+- **원인 ②** v17 이전 저장분은 옛 표기 유지(당시 노트에도 명시). Export는 저장값을 가공 없이 출력하는 구조였음(`e.title` 직행).
+- **원인 ③** `sw.js CACHE_VERSION`이 `20260817-1811`에서 멈춰 있어 폰에서 구버전 `index.html`이 서빙될 여지.
+- **Flex `A` → `A(Senior)`는 회귀가 아니라 미구현 신규 규칙**. SPEC은 `RULES.flexMap`으로 이미 `A(Senior)-flex`를 내보내고 있어 TITLE만 어긋나 있었다.
+
+**개선 내용**
+- **규칙 단일 소스화**: `app/rules.js`에 `titleFlexLabel(flex, gender)` + `normalizeTitleTags(title, gender)` 신설. 상수 `TITLE_FLEX_OMIT`(`''`/`-`/`W`), `TITLE_FLEX_LABEL`(`A`→`A(Senior)`), `TITLE_TAG_START`(앞 2세그먼트는 태그 판정 제외 → 모델명 `A` 오변환 방지).
+- **생성 경로**: `index.html` `regenerateFields()`의 인라인 조건식을 `titleFlexLabel()` 호출로 교체.
+- **Export 경로**: `export.js`에 `exportTitle(e)` 추가 → `exportCSV`/`exportXLSX` 모두 출력 직전 정규화. **저장 데이터(`STATE.entries`)는 변경하지 않음** — 구 저장분도 내보내기 결과만 교정된다.
+- **편집 모달**: `saveEditModal()` 저장 시 `normalizeTitleTags(e.title, e.gender)` 적용(원인 ①). 수기 편집 문구는 유지하고 flex 태그만 교정.
+- **캐시**: `sw.js CACHE_VERSION` → `20260822-2340`.
+- **검증**: jsdom 재현 하네스로 생성 경로 9건 + Export 경로 10건 전부 통과. 추가로 SheetJS로 실제 `.xlsx`를 만들어 TITLE 열을 되읽어 4행(일반/Women/A/Women+A) 확인, 원본 `entries` 무변경도 확인.
+- ⚠️ **저장된 데이터는 그대로**다. 앱 목록 화면에는 여전히 옛 표기가 보일 수 있고, **Export 결과와 편집 모달 저장분에만** 새 규칙이 반영된다.
 
 ### v20 변경 (2026-08-18, DB 갱신을 월 1회 수작업으로 전환 — v19 앱 변경 철회)
 
@@ -292,6 +325,8 @@ Cowork **Edit 도구로 index.html/match.js/sw.js/CLAUDE.md 수정 시 파일 �
 ### 회귀 방지 메모
 - Code Review 본문: `docs/code_review_20260530.md`
 - Flex/브랜드/타입 규칙 변경 시 **반드시 `app/rules.js`와 `docs/data_analysis.md §7-3` 동시 수정**
+- **(v21) TITLE의 flex 표기를 바꿀 때**: `app/rules.js`의 `titleFlexLabel()`·`TITLE_FLEX_LABEL`·`TITLE_FLEX_OMIT` **한 곳만** 수정하면 생성(`regenerateFields`)·Export(`exportTitle`)·편집 모달(`saveEditModal`)에 동시 반영. `index.html`에 조건식을 다시 인라인으로 넣지 말 것(과거 이 인라인 조건이 규칙 이원화의 원인이었음).
+- **(v21) "Export에 옛 표기가 나온다"는 보고를 받으면**: 먼저 코드가 아니라 **저장 데이터**를 의심할 것. TITLE은 저장 시점 문자열이 그대로 굳으며, 목록 화면은 정규화를 거치지 않는다. 재현은 `regenerateFields()`를 jsdom으로 직접 돌려 확인(생성 로직 정상 여부) → 정상이면 편집 모달·구 저장분·SW 캐시 3가지를 점검.
 - **매칭 데이터 갱신 시**: `data/00 matching data.xlsx` 수정 → `py build_match_tree.py` 재실행 → JSON 2종 재생성 → push (sw.js CACHE_VERSION 자동 갱신). 자세한 운영(방법 A/B/C)은 계획서 §10-B.
 - **직접 입력 후보가 안 뜰 때**: ① JSON 로드 실패(콘솔 확인) ② `STATE.entries` 필드명(`type/brand/model/shaftModel`)이 match.js 추출자와 일치하는지 확인.
 - **드롭다운(v14)이 안 뜰 때**: ① `loadMatchData()` 완료 전이면 빈 목록 → `setInputMode('manual')`에서 로드 호출함 ② `mi-dd-*` 컨테이너 존재/`.open` 클래스 확인 ③ `MATCH.tree[TYPE]`에 해당 TYPE 키 존재 여부(`miType()` 폴백 Driver).

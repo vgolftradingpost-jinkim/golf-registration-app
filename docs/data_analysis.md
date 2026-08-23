@@ -1,7 +1,7 @@
 # Golf Inventory Data Analysis
 **원본 분석 파일**: `data/golf_inventory.xlsx` *(v9에서 저장소에서 제거됨 — 본 문서는 참고 기준치로만 유지)*
 **최초 분석일**: 2026-03-29
-**최종 동기화**: 2026-05-30 *(Flex 표 §7-3을 코드 `flexMap`과 일치화)*
+**최종 동기화**: 2026-08-22 *(v21 — §7-3 TITLE 열을 `titleFlexLabel()` 규칙과 일치화: Women+`L` 생략, `A`→`A(Senior)`)*
 **목적**: 이미지 판독 데이터를 일관된 형식으로 매핑하기 위한 정규화 기준
 
 ---
@@ -288,9 +288,11 @@ Pick up only, Strata 10 pcs Complete Set for Starter(No bag), Driver, 3wood, 4,5
 ### 7-3. Flex 표기 정규화
 
 PRODUCT NAME(TITLE)과 SPECIFICATION에서 Flex 표기를 아래와 같이 통일한다.
-*(코드 단일 소스: `app/rules.js` 의 `RULES.flexMap` — v12 이후 모듈 분리, 2026-05-30 동기화)*
+*(코드 단일 소스: SPECIFICATION 표기 = `app/rules.js`의 `RULES.flexMap`,
+TITLE 표기 = `app/rules.js`의 `titleFlexLabel()` / `normalizeTitleTags()` — v21, 2026-08-22 동기화)*
 
-> 본 표를 수정할 경우 `app/rules.js`의 `RULES.flexMap`도 함께 수정해야 한다 (양쪽 일치 필수).
+> 본 표를 수정할 경우 `app/rules.js`의 `RULES.flexMap`(SPEC)과
+> `titleFlexLabel()`·`TITLE_FLEX_LABEL`(TITLE)도 함께 수정해야 한다 (양쪽 일치 필수).
 
 | Flex 값 | TITLE 표기 | SPECIFICATION 표기 |
 |---------|------------|-------------------|
@@ -299,8 +301,8 @@ PRODUCT NAME(TITLE)과 SPECIFICATION에서 Flex 표기를 아래와 같이 통�
 | Stiff | `S` | `Stiff-flex` |
 | Stiff/Regular | `R(S)` | `Stiff/Regular-flex` |
 | eXtra Stiff | `X` | `eXtra stiff-flex` |
-| Ladies | `L` *(Women 동반 시 생략)* | `Ladies-flex` |
-| Senior | `A` | `A(Senior)-flex` |
+| Ladies | Gender=Women이면 **생략** / 그 외 `L` | `Ladies-flex` |
+| Senior | **`A(Senior)`** *(v21 변경, 이전 `A`)* | `A(Senior)-flex` |
 | Uniflex | `Uni` | `Uniflex` |
 | Wedge | (생략) | `Wedge-flex` |
 
@@ -311,8 +313,8 @@ PRODUCT NAME(TITLE)과 SPECIFICATION에서 Flex 표기를 아래와 같이 통�
 | `R-flex`, `Regular`, `(R)`, `Reg` | `R` | `Regular-flex` |
 | `S-flex`, `Stiff`, `(S)` | `S` | `Stiff-flex` |
 | `SR`, `R/S`, `RS` | `R(S)` | `Stiff/Regular-flex` |
-| `L-flex`, `Ladies` | `L` | `Ladies-flex` |
-| `A-flex`, `A(Senior)`, `Senior` | `A` | `A(Senior)-flex` |
+| `L-flex`, `Ladies` | `L` *(Women이면 생략)* | `Ladies-flex` |
+| `A-flex`, `A(Senior)`, `Senior` | `A(Senior)` | `A(Senior)-flex` |
 | `X-flex`, `XS`, `eXtra Stiff` | `X` | `eXtra stiff-flex` |
 | `Uniflex`, `Uni` | `Uni` | `Uniflex` |
 | `W-flex`, `Wedge flex` | (TITLE 생략) | `Wedge-flex` |
