@@ -77,7 +77,9 @@ Hybrid Women: 2H=19.5, 3H=21.5, 4H=24.0, 5H=26.5, 6H=29.5, 7H=32.0
 
 ---
 
-## 현재 상태 (v21, 2026-08-22) — TITLE flex 표기 규칙 정정: Women+`L` 생략 / `A` → `A(Senior)`, Export 시점 정규화 도입 (아래 v21 변경 참조)
+## 현재 상태 (v22, 2026-08-27) — VGT Store 조회 복구: corsproxy.io 익명 사용 중단(403) 대응 프록시 폴백 체인 도입 (아래 v22 변경 참조)
+
+## 이전 상태 (v21, 2026-08-22) — TITLE flex 표기 규칙 정정: Women+`L` 생략 / `A` → `A(Senior)`, Export 시점 정규화 도입 (아래 v21 변경 참조)
 
 ## 이전 상태 (v20, 2026-08-18) — DB 갱신을 **월 1회 수작업**으로 전환: `Export DB` 버튼 철회, `incoming/` + 양식 파일 유지 (아래 v20 변경 참조)
 
@@ -166,6 +168,39 @@ app/
 build_match_tree.py   ← (신규) 엑셀→JSON 변환
 data/00 matching data.xlsx ← (신규) 매칭 원본 7,120건
 ```
+
+### v22 변경 (2026-08-27, VGT Store 조회 실패 복구 — 프록시 폴백 체인)
+
+폰에서 신규 등록 후 `VGT Price` 를 누르면 `조회 실패 (HTTP 403)` 만 나오는 문제. **앱 회귀가 아니라 외부 서비스 정책 변경**이었다.
+
+**원인 규명 (라이브 앱 URL에서 실측)**
+
+| 호출 방식 | 결과 |
+|---|---|
+| 기존 코드 `corsproxy.io/?<encoded>` | **403** `keyless_legacy_url` — "Anonymous legacy proxy URLs are no longer supported. Use the CORSPROXY API with an API key." |
+| 신형식 `corsproxy.io/?url=<encoded>` | **401** "A valid API key is required" |
+| 프록시 없이 직접 호출 | **CORS 차단**(status 0) — Shopify `suggest.json` 은 `Access-Control-Allow-Origin` 을 주지 않음 |
+
+→ ① 프록시는 앞으로도 필요하고 ② 쓰던 프록시가 무료 익명 사용을 닫은 것. TITLE/SPEC·eBay 버튼(단순 링크)·AI 분석은 무관하며 v21 과도 무관.
+
+**부수 발견 — SW 캐시 우회 목록이 프록시 교체의 숨은 함정**
+`sw.js` 의 fetch 핸들러는 우회 목록(`api.anthropic.com`/`corsproxy.io`/`golftradingpost.ca`)에 없는 URL을 가로채고, 실패하면 `caches.match()` 의 `undefined` 를 `respondWith` 로 넘긴다. 그러면 페이지에는 **원인 없는 `Failed to fetch`** 만 보인다. 실제로 새 프록시 후보들을 앱 페이지에서 테스트하니 전부 즉시 실패했고, 같은 코드가 외부 오리진(example.com)에서는 정상 동작했다. **프록시를 추가할 때 SW 우회 목록을 같이 고치지 않으면 새 프록시도 죽는다.**
+
+**개선 내용**
+- **`app/index.html` — `MARKET_PROXIES` + `fetchViaProxies()` 신설**: 프록시를 순서대로 시도해 첫 성공 응답 사용. 순서는 `cors.sh`(8s) → `corsproxy`(8s, 키 발급 시 즉시 부활하는 자리) → `allorigins`(20s, 느리지만 살아 있는 예비).
+  - **200 이어도 실패 판정**: JSON 파싱 실패(`JSON 아님`) 또는 `resources` 키 부재(`형식 불일치`)면 다음 프록시로. 프록시가 에러 HTML 을 200 으로 돌려주는 흔한 사고 방어.
+  - 프록시별 개별 `AbortController` 타임아웃 → 전체 대기시간 상한 확보.
+  - 예비 경로로 넘어가면 검색 라벨에 `· 예비 경로(이름)` 표기. 전부 실패 시 에러 메시지에 시도 이력 전부 표시(`cors.sh:HTTP 403 / corsproxy:HTTP 401 / ...`).
+  - `buildMarketQuery()`·`triggerEbaySearch()`·TITLE/SPEC 로직은 **무변경**.
+- **`app/sw.js`**: 우회 목록에 `proxy.cors.sh`·`api.allorigins.win` 추가(+ 함정 주석). `CACHE_VERSION` → `20260827-2200`.
+  - ⚠️ 겸사겸사 정리: 직전 커밋 `2ecd911` 이 `CACHE_VERSION` 을 `20260822-2340` → `20260822-1716` 로 **되돌려** 놓은 상태였다(v21 배포분보다 낮은 값). SW 는 문자열 일치 비교라 치명적이진 않지만 배포 이력과 어긋나므로 새 값으로 승급.
+- **검증**
+  - `node --check`: index.html 인라인 스크립트(1,160줄)·`sw.js` 통과. NUL 0바이트, 1,841줄, `</html>` 정상 종료.
+  - **폴백 로직 6케이스**(fetch 모킹, Node): ① 1순위 성공 ② 403→401→성공 ③ 200인데 HTML → 폴백 ④ 200인데 형식불일치 → 폴백 ⑤ 전부 실패 시 시도 이력 취합 예외 ⑥ 1순위 타임아웃(8초 후 폴백) 전부 통과.
+  - **실네트워크 E2E**(라이브 앱 페이지에 신규 함수 주입, Chrome): `TaylorMade Driver M2`/`Callaway Iron Set Apex`/`PXG Driver 0811 X+` 3건 모두 `via=cors.sh`, 155~464ms, 상품 6건·가격 파싱 정상.
+  - **실패 폴백 실측**: 죽은 corsproxy 2종을 1·2순위로 배치 → `corsproxy:HTTP 401` → `corsproxy-legacy:HTTP 403` → `cors.sh` 성공, 총 481ms.
+- ⚠️ **한계**: 1·3순위 모두 제3자 무료 서비스라 같은 사고가 재발할 수 있다. 폴백 체인은 그때 버텨주는 장치일 뿐이며, 근본 해결은 **자체 프록시(Cloudflare Workers)** 또는 **Shopify Storefront API 전환**(CORS 허용이라 프록시 자체가 불필요). 별도 과제로 남김.
+- ⚠️ **미커밋**: 마운트에서 git 명령 금지 규칙에 따라 커밋·푸시는 Windows 에서 `push.bat` 실행. 이후 폰 PWA 완전 종료 후 재실행.
 
 ### v21 변경 (2026-08-22, TITLE flex 표기 규칙 정정 + Export 정규화)
 
@@ -323,6 +358,8 @@ v13과 동일(파일 추가/삭제 없음). `match.js`/`index.html` 내용만 �
 Cowork **Edit 도구로 index.html/match.js/sw.js/CLAUDE.md 수정 시 파일 끝 NUL(\x00) 덧붙음 + 대형 편집 시 뒷부분 절단** 손상 반복 발생(index.html 1794→1503줄, CLAUDE.md 147→115줄로 잘림). 대응: `git show HEAD:파일`로 복원 후 재적용. 권장: 마운트 폴더 대형 파일은 Edit 대신 **Python 문자열 치환 + `.replace(b'\x00',b'')`** 후 `node --check` 검증. v14는 이 방식으로 완료.
 
 ### 회귀 방지 메모
+- **(v22) VGT 조회가 실패하면 앱 코드보다 프록시 정책 변경을 먼저 의심할 것**. 확인 순서: ① 브라우저 콘솔의 `VGT proxy failed:` 로그로 어느 프록시가 무슨 코드로 죽었는지 확인 ② 해당 프록시 URL을 직접 열어 응답 본문 확인(대개 403/401 + 안내 메시지) ③ 프록시 없이 직접 호출은 **항상 CORS 로 막히는 게 정상**이므로 이걸로 판단하지 말 것.
+- **(v22) 프록시를 추가·교체할 때는 반드시 두 곳을 함께 고칠 것**: `app/index.html` 의 `MARKET_PROXIES` 배열 + `app/sw.js` 의 캐시 우회 `if` 목록. SW 우회 목록에 없으면 그 프록시는 SW 에 가로채여 **원인 표시 없이 `Failed to fetch`** 로만 죽는다(v22 조사에서 실제로 겪음).
 - Code Review 본문: `docs/code_review_20260530.md`
 - Flex/브랜드/타입 규칙 변경 시 **반드시 `app/rules.js`와 `docs/data_analysis.md §7-3` 동시 수정**
 - **(v21) TITLE의 flex 표기를 바꿀 때**: `app/rules.js`의 `titleFlexLabel()`·`TITLE_FLEX_LABEL`·`TITLE_FLEX_OMIT` **한 곳만** 수정하면 생성(`regenerateFields`)·Export(`exportTitle`)·편집 모달(`saveEditModal`)에 동시 반영. `index.html`에 조건식을 다시 인라인으로 넣지 말 것(과거 이 인라인 조건이 규칙 이원화의 원인이었음).

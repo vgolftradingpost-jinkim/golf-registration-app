@@ -1195,6 +1195,49 @@ function buildMarketQuery() {
   return [brand, type, model].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 }
 
+/* ================================================================
+   (v22, 2026-08-27) VGT 조회 프록시 폴백 체인
+   corsproxy.io 가 익명(키 없는) 레거시 URL 지원을 중단해
+   403 keyless_legacy_url 로 조회가 전면 실패한 사고 대응.
+   Shopify suggest.json 은 CORS 헤더를 주지 않으므로 프록시는 계속 필요하다.
+   ⚠ 프록시를 추가/교체할 때는 이 배열 한 곳만 수정할 것.
+     동시에 app/sw.js 의 캐시 우회 목록에도 도메인을 넣어야 한다
+     (우회 목록에 없으면 SW 가 가로채 "Failed to fetch" 로 죽는다).
+   ================================================================ */
+const MARKET_PROXIES = [
+  { name: 'cors.sh',    timeout:  8000, build: u => 'https://proxy.cors.sh/' + u },
+  { name: 'corsproxy',  timeout:  8000, build: u => 'https://corsproxy.io/?url=' + encodeURIComponent(u) },
+  { name: 'allorigins', timeout: 20000, build: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) }
+];
+
+/* 프록시를 순서대로 시도해 첫 성공 응답을 돌려준다.
+   200 이어도 JSON 이 아니거나 Shopify 형식이 아니면 실패로 보고 다음 프록시로 넘어간다
+   (프록시가 에러 HTML 을 200 으로 주는 경우 방어). */
+async function fetchViaProxies(targetUrl) {
+  const tried = [];
+  for (const p of MARKET_PROXIES) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), p.timeout);
+    try {
+      const resp = await fetch(p.build(targetUrl), { signal: controller.signal });
+      clearTimeout(timer);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const text = await resp.text();
+      let data;
+      try { data = JSON.parse(text); }
+      catch (e) { throw new Error('JSON 아님'); }
+      if (!data || !data.resources) throw new Error('형식 불일치');
+      return { data, via: p.name, tried };
+    } catch (err) {
+      clearTimeout(timer);
+      const msg = (err.name === 'AbortError') ? 'timeout' : err.message;
+      tried.push(p.name + ':' + msg);
+      console.warn('VGT proxy failed:', p.name, msg);
+    }
+  }
+  throw new Error(tried.join(' / '));
+}
+
 async function triggerMarketSearch() {
   const searchQ = buildMarketQuery();
   if (!searchQ) { toast('BRAND/MODEL을 먼저 입력해 주세요.', true); return; }
@@ -1208,17 +1251,13 @@ async function triggerMarketSearch() {
   resultsEl.innerHTML = `<div class="vgt-loading"><div class="vgt-mini-spinner"></div>VGT Store 조회 중...</div>`;
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   const shopifyUrl = `https://golftradingpost.ca/search/suggest.json?q=${encodeURIComponent(searchQ)}&resources[type]=product&resources[limit]=6`;
-  const proxyUrl   = `https://corsproxy.io/?${encodeURIComponent(shopifyUrl)}`;
-
-  // 수동 타임아웃 (15초)
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
 
   try {
-    const resp = await fetch(proxyUrl, { signal: controller.signal });
-    clearTimeout(timer);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data     = await resp.json();
+    // (v22) 단일 프록시 → 폴백 체인. 예비 경로로 넘어가면 라벨에 표시한다.
+    const { data, via } = await fetchViaProxies(shopifyUrl);
+    if (via !== MARKET_PROXIES[0].name) {
+      queryLabel.textContent = '검색: ' + searchQ + ' · 예비 경로(' + via + ')';
+    }
     const products = data?.resources?.results?.products || [];
 
     if (products.length === 0) {
@@ -1239,7 +1278,6 @@ async function triggerMarketSearch() {
     resultsEl.innerHTML += `<a class="vgt-see-all" href="https://golftradingpost.ca/search?q=${enc}" target="_blank" rel="noopener">VGT Store 전체 검색 결과 보기 →</a>`;
 
   } catch(err) {
-    clearTimeout(timer);
     console.warn('VGT search error:', err);
     const enc = encodeURIComponent(searchQ);
     resultsEl.innerHTML = `
